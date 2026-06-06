@@ -1,0 +1,44 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            build_dir: msvc-release
+            artifact: cat-light-windows-msvc
+            binary: build/msvc-release/Release/cat-light.exe
+          - os: ubuntu-latest
+            build_dir: linux-release
+            artifact: cat-light-linux-x64
+            binary: build/linux-release/cat-light
+          - os: macos-14
+            build_dir: macos-release
+            artifact: cat-light-macos-arm64
+            binary: build/macos-release/cat-light
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Windows
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build/msvc-release -G "Visual Studio 17 2022" -A x64
+      - name: Build Windows
+        if: runner.os == 'Windows'
+        run: cmake --build build/msvc-release --config Release
+      - name: Configure Unix
+        if: runner.os != 'Windows'
+        run: cmake -S . -B build/${{ matrix.build_dir }} -DCMAKE_BUILD_TYPE=Release
+      - name: Build Unix
+        if: runner.os != 'Windows'
+        run: cmake --build build/${{ matrix.build_dir }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}

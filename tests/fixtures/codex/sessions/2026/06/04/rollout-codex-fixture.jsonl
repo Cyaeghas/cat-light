@@ -1,0 +1,6 @@
+{"timestamp":"2026-06-04T10:00:00Z","type":"event_msg","payload":{"type":"task_started"}}
+{"timestamp":"2026-06-04T10:00:01Z","type":"response_item","payload":{"type":"reasoning"}}
+{"timestamp":"2026-06-04T10:00:02Z","type":"response_item","payload":{"type":"function_call","name":"shell_command","arguments":"{\"command\":\"cmake --build build/msvc-release\",\"sandbox_permissions\":\"require_escalated\"}"}}
+{"timestamp":"2026-06-04T10:00:03Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1000,"output_tokens":200,"reasoning_output_tokens":50,"total_tokens":1250},"context_window":200000}}}
+{"timestamp":"2026-06-04T10:00:04Z","type":"response_item","payload":{"type":"function_call_output","output":"Exit code: 0\nBuild completed"}}
+{"timestamp":"2026-06-04T10:00:05Z","type":"event_msg","payload":{"type":"task_complete"}}

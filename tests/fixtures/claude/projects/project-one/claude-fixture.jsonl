@@ -1,0 +1,5 @@
+{"timestamp":"2026-06-04T11:00:00Z","type":"user","promptId":"prompt-fixture","message":{"content":[{"type":"text","text":"<redacted>"}]}}
+{"timestamp":"2026-06-04T11:00:01Z","type":"assistant","message":{"model":"claude-sonnet-fixture","content":[{"type":"thinking","text":"<redacted>"}],"usage":{"input_tokens":2000,"output_tokens":100,"cache_creation_input_tokens":20,"cache_read_input_tokens":30}}}
+{"timestamp":"2026-06-04T11:00:02Z","type":"assistant","message":{"model":"claude-sonnet-fixture","content":[{"type":"tool_use","name":"Bash","input":{}}],"stop_reason":"tool_use","usage":{"input_tokens":2200,"output_tokens":200,"cache_creation_input_tokens":20,"cache_read_input_tokens":40}}}
+{"timestamp":"2026-06-04T11:00:03Z","type":"user","message":{"content":[{"type":"tool_result","content":"<redacted>"}]}}
+{"timestamp":"2026-06-04T11:00:04Z","type":"assistant","message":{"model":"claude-sonnet-fixture","content":[{"type":"text","text":"<redacted>"}],"stop_reason":"end_turn","usage":{"input_tokens":2500,"output_tokens":500,"cache_creation_input_tokens":30,"cache_read_input_tokens":70}}}

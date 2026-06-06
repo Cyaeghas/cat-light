@@ -1,0 +1,53 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "msvc-release",
+      "displayName": "MSVC Release",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/msvc-release",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/msvc"
+      }
+    },
+    {
+      "name": "msys2-ucrt64-release",
+      "displayName": "MSYS2 UCRT64 Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/msys2-ucrt64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/msys2-ucrt64"
+      },
+      "environment": {
+        "PATH": "C:/msys64/ucrt64/bin;$penv{PATH}"
+      }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ninja-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/ninja"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "msvc-release",
+      "configurePreset": "msvc-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "msys2-ucrt64-release",
+      "configurePreset": "msys2-ucrt64-release"
+    },
+    {
+      "name": "ninja-release",
+      "configurePreset": "ninja-release"
+    }
+  ]
+}

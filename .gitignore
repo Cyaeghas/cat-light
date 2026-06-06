@@ -1,0 +1,9 @@
+build/
+bin/
+dist/
+*.exe
+*.test
+coverage.out
+.DS_Store
+.idea/
+.vscode/
