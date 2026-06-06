@@ -1,10 +1,30 @@
 # cat-light
 
 [![build](https://github.com/Cyaeghas/cat-light/actions/workflows/build.yml/badge.svg)](https://github.com/Cyaeghas/cat-light/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/Cyaeghas/cat-light?include_prereleases&label=release)](https://github.com/Cyaeghas/cat-light/releases)
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-3EBCD1)](CMakeLists.txt)
+[![CMake](https://img.shields.io/badge/build-CMake-5BC080)](CMakePresets.json)
+[![platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-9DA8B8)](.github/workflows/build.yml)
+
+English | [简体中文](README.zh-CN.md)
 
 `cat-light` is a local-first status monitor for Codex and Claude Code. It watches active coding-agent sessions, token usage, context pressure, hooks, and history, then exposes the result through a CLI, local dashboard, Waybar JSON, Windows tray, and a compact floating desktop monitor.
 
 The project is written in C++ with CMake. The core stays dependency-light and cross-platform; richer native UI shells are kept as optional targets.
+
+![cat-light preview](docs/screenshots/cat-light-preview.svg)
+
+## Highlights
+
+| Feature | What you get |
+| --- | --- |
+| System tray | A Windows tray launcher that supervises the local dashboard server and exposes quick actions. |
+| Floating monitor | A topmost, draggable desktop widget for active Codex / Claude Code state. |
+| Web dashboard | A local `127.0.0.1` dashboard for sessions, history summaries, trends, and sync actions. |
+| Agent state | Multiple live sessions per provider with `thinking`, `working`, `waiting`, `complete`, and `error` states. |
+| Token and context tracking | Local token totals, context usage, and quota-oriented provider status where available. |
+| Reversible hooks | Codex `notify` and Claude `settings.json` helpers with backups and uninstall flow. |
+| Local history | JSONL by default, optional bundled SQLite build, deduped events, trend buckets, and summaries. |
 
 ## Why
 
@@ -48,7 +68,27 @@ project: 2026/06/04
 
 It stays topmost, can be dragged, remembers its position in `%LOCALAPPDATA%\cat-light\float.ini`, and opens the dashboard on double-click. Right-click actions include sync, hook status, refresh, reset position, and quit.
 
-## Quick Start
+## Installation
+
+Download prebuilt binaries from [GitHub Releases](https://github.com/Cyaeghas/cat-light/releases), or build from source.
+
+Windows release archives contain:
+
+```text
+cat-light.exe
+cat-light-tray.exe
+cat-light-float.exe
+```
+
+Start with:
+
+```powershell
+.\cat-light-float.exe
+```
+
+Detailed Windows install notes are in [docs/install-windows.md](docs/install-windows.md).
+
+## Build From Source
 
 Build with Visual Studio / MSVC:
 
@@ -86,6 +126,25 @@ Open the dashboard:
 http://127.0.0.1:8750
 ```
 
+## Usage
+
+### System Tray
+
+- Left-click: open the local dashboard.
+- Right-click: open dashboard, sync history, check hook status, or quit.
+- The tray launcher starts `cat-light.exe serve --addr 127.0.0.1:8750` in the background.
+
+### Floating Monitor
+
+- Drag: move the monitor.
+- Double-click: open the local dashboard.
+- Right-click: sync, hook status, refresh, reset position, or quit.
+- Window position is saved in `%LOCALAPPDATA%\cat-light\float.ini`.
+
+### Dashboard
+
+The dashboard is available at `http://127.0.0.1:8750` after running `serve`, the tray launcher, or the floating monitor.
+
 ## Agent State
 
 `cat-light` merges live events from hooks, passive JSONL scans, and manual events into per-session state.
@@ -118,6 +177,17 @@ POST http://127.0.0.1:8750/event
 GET  http://127.0.0.1:8750/state
 GET  http://127.0.0.1:8750/sessions
 ```
+
+## Data Sources
+
+| Source | Path or endpoint | Purpose |
+| --- | --- | --- |
+| Codex auth | `~/.codex/auth.json` | Codex OAuth token and quota request support. |
+| Codex sessions | `~/.codex/sessions/**/*.jsonl` | Passive local session state, tokens, tool calls, and commands. |
+| Claude credentials | `~/.claude/.credentials.json` or `CLAUDE_CONFIG_DIR` | Claude usage endpoint support. |
+| Claude projects | `~/.claude/projects/**/*.jsonl` | Passive local session state, tokens, model, and tool events. |
+| Hooks | `%LOCALAPPDATA%\cat-light\hooks` | Explicit lifecycle events from Codex and Claude Code. |
+| Manual/API events | `cat-light event` and `POST /event` | Wrapper integrations, unofficial API runners, and custom launchers. |
 
 ## History And Storage
 
@@ -193,6 +263,12 @@ build\msvc-release\Release\cat-light-float.exe
 
 GitHub Actions builds SQLite-enabled binaries on Windows, Linux, and macOS. The Windows artifact contains all three Windows executables.
 
+Create a local Windows zip after building:
+
+```powershell
+.\scripts\package-windows.ps1 -BuildDir build\msvc-sqlite -Version dev
+```
+
 ## Reference Projects
 
 `cat-light` borrows ideas from several useful projects while trying to combine them into one local-first monitor.
@@ -235,6 +311,7 @@ Run fixture tests:
 
 Useful docs:
 
+- [Windows installation](docs/install-windows.md)
 - [Hook contract](docs/hook-contract.md)
 - [Storage design](docs/storage.md)
 - [Platform roadmap](docs/platform-roadmap.md)

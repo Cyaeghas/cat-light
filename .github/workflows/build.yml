@@ -56,6 +56,9 @@ jobs:
             build/msvc-release/Release/cat-light.exe
             build/msvc-release/Release/cat-light-tray.exe
             build/msvc-release/Release/cat-light-float.exe
+            README.md
+            README.zh-CN.md
+            docs/install-windows.md
       - name: Upload Unix artifact
         if: runner.os != 'Windows'
         uses: actions/upload-artifact@v7
@@ -68,6 +71,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8
         with:
           path: dist
@@ -88,4 +92,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: gh release create "${GITHUB_REF_NAME}" release/* --title "${GITHUB_REF_NAME}" --notes "cat-light ${GITHUB_REF_NAME}"
+        run: |
+          notes="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [[ -f "$notes" ]]; then
+            gh release create "${GITHUB_REF_NAME}" release/* --title "${GITHUB_REF_NAME}" --notes-file "$notes"
+          else
+            gh release create "${GITHUB_REF_NAME}" release/* --title "${GITHUB_REF_NAME}" --notes "cat-light ${GITHUB_REF_NAME}"
+          fi
