@@ -93,6 +93,38 @@ bool is_shell_tool(const std::string &tool) {
   return lower == "shell_command" || lower == "bash" || lower == "shell" || lower == "terminal";
 }
 
+bool is_tool_success_event(const AgentEvent &event) {
+  const std::string detail = to_lower(event.detail);
+  return event.state != AgentState::Error &&
+         (detail.find("completed") != std::string::npos || detail.find("complete") != std::string::npos ||
+          detail.find("applied") != std::string::npos || detail.find("finished") != std::string::npos ||
+          detail.find("received") != std::string::npos);
+}
+
+bool is_tool_failure_event(const AgentEvent &event) {
+  const std::string detail = to_lower(event.detail);
+  return event.state == AgentState::Error || detail.find("failed") != std::string::npos ||
+         detail.find("error") != std::string::npos;
+}
+
+bool is_command_start_event(const AgentEvent &event) {
+  if (!is_shell_tool(event.tool_name)) {
+    return false;
+  }
+  const std::string detail = to_lower(event.detail);
+  return detail.find("running command") != std::string::npos ||
+         detail.find("waiting for approval") != std::string::npos;
+}
+
+bool is_command_output_event(const AgentEvent &event) {
+  if (!is_shell_tool(event.tool_name)) {
+    return false;
+  }
+  const std::string detail = to_lower(event.detail);
+  return detail.find("command completed") != std::string::npos ||
+         detail.find("command failed") != std::string::npos;
+}
+
 std::string command_key_from_event(const AgentEvent &event) {
   if (!is_shell_tool(event.tool_name)) {
     return "";
@@ -104,6 +136,31 @@ std::string command_key_from_event(const AgentEvent &event) {
     return "";
   }
   return trim(detail.substr(open + 1, close - open - 1));
+}
+
+std::string dimension_key(const std::string &value) {
+  return value.empty() ? "(unknown)" : value;
+}
+
+void add_dimensions(HistoryAggregate &aggregate, const AgentEvent &event) {
+  aggregate.providers[dimension_key(event.provider)]++;
+  aggregate.models[dimension_key(event.model)]++;
+  aggregate.projects[dimension_key(event.project_path)]++;
+}
+
+void add_dimensions(HistoryAggregate &aggregate, const AgentSession &session) {
+  aggregate.providers[dimension_key(session.provider)]++;
+  aggregate.models[dimension_key(session.model)]++;
+  aggregate.projects[dimension_key(session.project_path)]++;
+}
+
+void add_duration(HistoryAggregate &aggregate, TimePoint start, TimePoint end) {
+  const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+  if (seconds <= 0) {
+    return;
+  }
+  aggregate.duration_seconds += seconds;
+  aggregate.max_duration_seconds = std::max<long long>(aggregate.max_duration_seconds, seconds);
 }
 
 std::vector<HistoryAggregate> sorted_aggregates(const std::map<std::string, HistoryAggregate> &items) {
@@ -128,8 +185,32 @@ Json aggregate_to_json(const HistoryAggregate &aggregate) {
   obj["key"] = aggregate.key;
   obj["events"] = aggregate.events;
   obj["sessions"] = aggregate.sessions;
+  obj["successes"] = aggregate.successes;
+  obj["failures"] = aggregate.failures;
+  obj["duration_seconds"] = static_cast<double>(aggregate.duration_seconds);
+  obj["max_duration_seconds"] = static_cast<double>(aggregate.max_duration_seconds);
   obj["tokens"] = token_usage_to_json(aggregate.tokens);
   obj["context"] = context_usage_to_json(aggregate.context);
+  auto map_to_array = [](const std::map<std::string, int> &items) {
+    std::vector<std::pair<std::string, int>> sorted(items.begin(), items.end());
+    std::sort(sorted.begin(), sorted.end(), [](const auto &a, const auto &b) {
+      if (a.second != b.second) {
+        return a.second > b.second;
+      }
+      return a.first < b.first;
+    });
+    Json::array_type array;
+    for (const auto &entry : sorted) {
+      Json::object_type item;
+      item["key"] = entry.first;
+      item["events"] = entry.second;
+      array.push_back(Json(std::move(item)));
+    }
+    return Json(std::move(array));
+  };
+  obj["providers"] = map_to_array(aggregate.providers);
+  obj["models"] = map_to_array(aggregate.models);
+  obj["projects"] = map_to_array(aggregate.projects);
   return Json(std::move(obj));
 }
 
@@ -168,6 +249,11 @@ void set_tool_sessions(std::map<std::string, HistoryAggregate> &groups,
     }
   }
 }
+
+struct PendingCommand {
+  std::string key;
+  TimePoint started_at;
+};
 
 } // namespace
 
@@ -279,6 +365,7 @@ HistorySummary summarize_history(const Options &options) {
   std::map<std::string, int> project_events;
   std::map<std::string, std::set<std::string>> tool_sessions;
   std::map<std::string, std::set<std::string>> command_sessions;
+  std::map<std::string, PendingCommand> pending_commands;
   auto daily_bucket = [&](TimePoint timestamp) -> HistoryDailyAggregate & {
     const std::string date = format_utc_date(timestamp);
     HistoryDailyAggregate &bucket = daily[date];
@@ -300,14 +387,41 @@ HistorySummary summarize_history(const Options &options) {
       HistoryAggregate &aggregate = tools[tool_key];
       aggregate.key = tool_key;
       ++aggregate.events;
+      if (is_tool_success_event(event)) {
+        ++aggregate.successes;
+      }
+      if (is_tool_failure_event(event)) {
+        ++aggregate.failures;
+      }
+      add_dimensions(aggregate, event);
       tool_sessions[tool_key].insert(session_identity(event));
     }
-    const std::string command_key = command_key_from_event(event);
-    if (!command_key.empty()) {
+    const std::string identity = session_identity(event);
+    if (is_command_start_event(event)) {
+      const std::string command_key = command_key_from_event(event);
+      if (!command_key.empty()) {
+        HistoryAggregate &aggregate = commands[command_key];
+        aggregate.key = command_key;
+        ++aggregate.events;
+        add_dimensions(aggregate, event);
+        command_sessions[command_key].insert(identity);
+        pending_commands[identity] = PendingCommand{command_key, event.timestamp};
+      }
+    } else if (is_command_output_event(event)) {
+      auto pending = pending_commands.find(identity);
+      if (pending == pending_commands.end()) {
+        continue;
+      }
+      const std::string command_key = pending->second.key;
       HistoryAggregate &aggregate = commands[command_key];
       aggregate.key = command_key;
-      ++aggregate.events;
-      command_sessions[command_key].insert(session_identity(event));
+      if (is_tool_failure_event(event)) {
+        ++aggregate.failures;
+      } else {
+        ++aggregate.successes;
+      }
+      add_duration(aggregate, pending->second.started_at, event.timestamp);
+      pending_commands.erase(pending);
     }
   }
 
@@ -325,6 +439,7 @@ HistorySummary summarize_history(const Options &options) {
       ++aggregate.sessions;
       add_tokens(aggregate.tokens, session.tokens);
       keep_context_max(aggregate.context, session.context);
+      add_dimensions(aggregate, session);
     };
     update(providers, provider_key);
     update(models, model_key);
@@ -425,6 +540,12 @@ std::string render_history_summary_text(const HistorySummary &summary) {
       const auto &item = items[i];
       out << "\n  " << item.key << ": " << format_token_total(item.tokens.total)
           << " tokens, " << item.sessions << " sessions, " << item.events << " events";
+      if (item.successes > 0 || item.failures > 0) {
+        out << ", " << item.successes << " ok, " << item.failures << " failed";
+      }
+      if (item.duration_seconds > 0) {
+        out << ", " << item.duration_seconds << "s";
+      }
     }
   };
   render_group("Providers", summary.providers);

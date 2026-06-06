@@ -24,8 +24,15 @@ struct HistoryAggregate {
   std::string key;
   int events = 0;
   int sessions = 0;
+  int successes = 0;
+  int failures = 0;
+  long long duration_seconds = 0;
+  long long max_duration_seconds = 0;
   TokenUsage tokens;
   ContextUsage context;
+  std::map<std::string, int> providers;
+  std::map<std::string, int> models;
+  std::map<std::string, int> projects;
 };
 
 struct HistoryDailyAggregate {

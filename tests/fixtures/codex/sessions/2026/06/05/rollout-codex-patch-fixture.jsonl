@@ -1,0 +1,5 @@
+{"timestamp":"2026-06-05T10:00:00Z","type":"event_msg","payload":{"type":"task_started"}}
+{"timestamp":"2026-06-05T10:00:01Z","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","input":"<redacted>"}}
+{"timestamp":"2026-06-05T10:00:02Z","type":"response_item","payload":{"type":"custom_tool_call_output","output":"Exit code: 0\nPatch applied"}}
+{"timestamp":"2026-06-05T10:00:03Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":600,"output_tokens":150,"reasoning_output_tokens":50,"total_tokens":800},"context_window":200000}}}
+{"timestamp":"2026-06-05T10:00:04Z","type":"event_msg","payload":{"type":"task_complete"}}

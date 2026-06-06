@@ -396,6 +396,25 @@ bool content_has_type(const Json *content, const std::string &type) {
   return false;
 }
 
+bool content_has_error_tool_result(const Json *content) {
+  if (!content || !content->is_array()) {
+    return false;
+  }
+  for (const auto &item : content->array()) {
+    if (!item.is_object() || string_value(item.get("type")) != "tool_result") {
+      continue;
+    }
+    if (const Json *is_error = item.get("is_error"); is_error && is_error->is_bool() && is_error->as_bool()) {
+      return true;
+    }
+    const std::string text = string_value(item.get("content"));
+    if (is_error_output(text)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::string last_tool_name(const Json *content) {
   std::string name;
   if (!content || !content->is_array()) {
@@ -459,8 +478,8 @@ std::optional<AgentEvent> claude_state_event(const Json &obj, const std::string 
     const Json *message = obj.get("message");
     const Json *content = message && message->is_object() ? message->get("content") : nullptr;
     if (content_has_type(content, "tool_result")) {
-      event.state = AgentState::Working;
-      event.detail = "Tool result received";
+      event.state = content_has_error_tool_result(content) ? AgentState::Error : AgentState::Working;
+      event.detail = event.state == AgentState::Error ? "Tool result error" : "Tool result received";
       return event;
     }
     if (obj.get("promptId")) {
@@ -505,6 +524,11 @@ std::optional<AgentEvent> claude_state_event(const Json &obj, const std::string 
     if (hook_event == "PreToolUse") {
       event.state = AgentState::Working;
       event.detail = hook_name.empty() ? "Preparing tool" : "Preparing " + hook_name;
+      return event;
+    }
+    if (hook_event == "PostToolUse") {
+      event.state = AgentState::Working;
+      event.detail = hook_name.empty() ? "Tool finished" : hook_name + " finished";
       return event;
     }
   }

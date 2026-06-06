@@ -171,6 +171,11 @@ std::string format_tokens(long long value) {
   return out.str();
 }
 
+bool is_usage_only_event(const AgentEvent &event) {
+  return event.raw_kind == "token_count" || event.raw_kind == "usage" || event.phase == "usage" ||
+         event.phase == "token_count";
+}
+
 } // namespace
 
 std::string agent_state_text(AgentState state) {
@@ -541,8 +546,16 @@ std::vector<AgentSession> merge_agent_events(const std::vector<AgentEvent> &even
     keep_max(session.tokens, event.tokens);
     merge_context(session.context, event.context);
     sources[instance_id].insert(event.source);
-    if (event.timestamp >= session.last_activity) {
+    const bool usage_only = is_usage_only_event(event);
+    if (event.timestamp > session.last_activity) {
       session.last_activity = event.timestamp;
+      if (!usage_only) {
+        session.state = event.state;
+        session.phase = event.phase;
+        session.detail = event.detail;
+        session.tool_name = event.tool_name;
+      }
+    } else if (event.timestamp == session.last_activity && !usage_only) {
       session.state = event.state;
       session.phase = event.phase;
       session.detail = event.detail;

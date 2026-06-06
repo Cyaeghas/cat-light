@@ -419,7 +419,12 @@ std::string dashboard_html() {
         const tokens = Number(item.tokens?.total || 0);
         const sessions = Number(item.sessions || 0);
         const events = Number(item.events || 0);
-        const value = tokens > 0 ? `${formatTokens(tokens)} tokens | ${sessions} sessions` : `${events} events | ${sessions} sessions`;
+        const ok = Number(item.successes || 0);
+        const failed = Number(item.failures || 0);
+        const seconds = Number(item.duration_seconds || 0);
+        let value = tokens > 0 ? `${formatTokens(tokens)} tokens | ${sessions} sessions` : `${events} events | ${sessions} sessions`;
+        if (ok || failed) value += ` | ${ok} ok / ${failed} failed`;
+        if (seconds) value += ` | ${seconds}s`;
         return `<div class="row">
           <span class="name">${escapeHtml(item.key)}</span>
           <span class="value">${escapeHtml(value)}</span>
