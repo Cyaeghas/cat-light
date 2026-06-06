@@ -250,9 +250,15 @@ std::vector<DoctorCheck> run_doctor(const Options &options) {
   if (!sqlite_backend.credential_ok) {
     sqlite_backend.message = "not compiled; JSONL history backend is available. Rebuild with CAT_LIGHT_ENABLE_SQLITE=ON after installing SQLite3 development files";
   }
+#ifdef CAT_LIGHT_BUNDLED_SQLITE
+  if (sqlite_backend.credential_ok) {
+    sqlite_backend.message = "compiled with bundled SQLite";
+  }
+#endif
   checks.push_back(sqlite_backend);
 
 #ifdef _WIN32
+#ifndef CAT_LIGHT_BUNDLED_SQLITE
   const std::filesystem::path msys2_sqlite_h = "C:\\msys64\\ucrt64\\include\\sqlite3.h";
   const std::filesystem::path msys2_sqlite_lib = "C:\\msys64\\ucrt64\\lib\\libsqlite3.dll.a";
   DoctorCheck msys2_sqlite;
@@ -268,6 +274,7 @@ std::vector<DoctorCheck> run_doctor(const Options &options) {
     msys2_sqlite.message = "install with MSYS2: pacman -S --needed mingw-w64-ucrt-x86_64-sqlite";
   }
   checks.push_back(msys2_sqlite);
+#endif
 #endif
   return checks;
 }

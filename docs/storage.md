@@ -57,7 +57,8 @@ Fixture test:
 SQLite is enabled at build time:
 
 ```powershell
-cmake -S . -B build\msvc-sqlite -DCAT_LIGHT_ENABLE_SQLITE=ON
+cmake --preset msvc-sqlite
+cmake --build --preset msvc-sqlite
 ```
 
 When compiled in, `--storage sqlite` writes to:
@@ -68,7 +69,7 @@ When compiled in, `--storage sqlite` writes to:
 
 Without SQLite support, `--storage sqlite` fails with a clear error. `--storage auto` uses SQLite when compiled in and JSONL otherwise.
 
-`sqlite3.exe` alone is not enough to build the SQLite backend. CMake also needs the development header and library (`sqlite3.h` plus a library such as `sqlite3.lib` on MSVC or `libsqlite3.dll.a` on MSYS2 UCRT64).
+The default SQLite build uses the vendored SQLite amalgamation in `vendor/sqlite`, so `sqlite3.exe`, `sqlite3.h`, or `sqlite3.lib` do not need to be installed separately. Set `CAT_LIGHT_USE_BUNDLED_SQLITE=OFF` to use `find_package(SQLite3)` and a system SQLite development package instead.
 
 ## SQLite Target
 

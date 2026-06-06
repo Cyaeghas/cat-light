@@ -2,7 +2,7 @@
 
 `cat-light` 是一个本地优先的 Codex / Claude Code 状态灯与用量指示器。目标不是只显示订阅 quota，而是同时观察多个 Codex / Claude Code 会话的运行状态、token 消耗、上下文长度和额度窗口。
 
-当前代码已经进入第二阶段原型：除了 quota usage，也能从本地 Codex / Claude Code JSONL 日志、手动事件入口和可逆 hook 安装合并出多会话 agent 状态，并通过 `sync` 做本地去重历史同步。SQLite 后端和托盘 GUI 仍在后续阶段。
+当前代码已经进入第二阶段原型：除了 quota usage，也能从本地 Codex / Claude Code JSONL 日志、手动事件入口和可逆 hook 安装合并出多会话 agent 状态，并通过 `sync` 做本地去重历史同步。SQLite 后端已经支持 vendored amalgamation 构建，Windows 托盘壳也有第一版。
 
 ## 当前功能
 
@@ -20,6 +20,7 @@
 - 扫描 Claude Code 本地会话：`~/.claude/projects/**/*.jsonl`。
 - `doctor` 检查本机凭据、curl、缓存目录。
 - `doctor` 检查 hook 最近事件、构建工具和 SQLite 环境。
+- 可选 bundled SQLite 后端和 Windows `cat-light-tray.exe` 托盘启动器。
 - `serve` 启动 `127.0.0.1` 本地服务，首页显示 agent sessions 和 history summary，并提供 `/usage`、`/state`、`/sessions`、`/history`、`/history-summary`、`/sync`、`/event`。
 
 这些用量接口属于未公开稳定接口，可能会变。程序只读取本地凭据并访问官方端点，不上传遥测。
@@ -86,6 +87,12 @@ cat-light history-trends-json --days 30
 cmake -S . -B build\msvc-sqlite -DCAT_LIGHT_ENABLE_SQLITE=ON
 ```
 
+或使用 preset：
+```powershell
+cmake --preset msvc-sqlite
+cmake --build --preset msvc-sqlite
+```
+
 fixture 回归测试：
 
 ```powershell
@@ -108,9 +115,9 @@ cat-light hook-script --provider codex --shell powershell
 
 ## 下一阶段重点
 
-- 将当前 JSONL 历史后端替换/扩展为 SQLite，做 7 天/30 天趋势和按项目/模型聚合。
+- 扩展 SQLite 查询表，继续细化项目、模型、工具和命令维度。
 - 增加更多真实脱敏 fixtures，覆盖 Codex rollout 和 Claude JSONL 的边缘形态。
-- 增加 dashboard 趋势图和按日期过滤。
+- 将 Windows tray 继续演进为跨平台 tray / floating UI。
 
 详见：
 
@@ -154,6 +161,7 @@ cmake --build build\msvc-sqlite --config Release
 
 ```text
 build\msvc-release\Release\cat-light.exe
+build\msvc-release\Release\cat-light-tray.exe
 ```
 
 ### MSYS2 / UCRT64
@@ -196,6 +204,17 @@ cat-light sessions --max-sessions 10
 ```text
 http://127.0.0.1:8750
 ```
+
+## Release
+
+GitHub Actions 会在 `main` 和 PR 上构建 SQLite-enabled 二进制。推送 `v*` tag 时会自动创建 GitHub Release：
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Windows artifact 包含 `cat-light.exe` 和 `cat-light-tray.exe`。
 
 ## Waybar
 

@@ -1,0 +1,6 @@
+{"timestamp":"2026-06-05T09:00:00Z","type":"event_msg","payload":{"type":"task_started"}}
+{"timestamp":"2026-06-05T09:00:01Z","type":"event_msg","payload":{"type":"user_message"}}
+{"timestamp":"2026-06-05T09:00:02Z","type":"response_item","payload":{"type":"function_call","name":"shell_command","arguments":"{\"command\":\"npm test -- --runInBand\",\"sandbox_permissions\":\"require_escalated\"}"}}
+{"timestamp":"2026-06-05T09:00:03Z","type":"response_item","payload":{"type":"function_call_output","output":"Exit code: 1\n<redacted>"}}
+{"timestamp":"2026-06-05T09:00:04Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1800,"output_tokens":350,"reasoning_output_tokens":150,"total_tokens":2300},"context_window":200000}}}
+{"timestamp":"2026-06-05T09:00:05Z","type":"event_msg","payload":{"type":"turn_aborted","reason":"failed checks"}}

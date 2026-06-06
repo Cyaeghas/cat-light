@@ -12,6 +12,18 @@
       }
     },
     {
+      "name": "msvc-sqlite",
+      "displayName": "MSVC Release With Bundled SQLite",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/msvc-sqlite",
+      "cacheVariables": {
+        "CAT_LIGHT_ENABLE_SQLITE": "ON",
+        "CAT_LIGHT_USE_BUNDLED_SQLITE": "ON",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/msvc-sqlite"
+      }
+    },
+    {
       "name": "msys2-ucrt64-release",
       "displayName": "MSYS2 UCRT64 Release",
       "generator": "Ninja",
@@ -33,6 +45,18 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/ninja"
       }
+    },
+    {
+      "name": "ninja-sqlite",
+      "displayName": "Ninja Release With Bundled SQLite",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ninja-sqlite",
+      "cacheVariables": {
+        "CAT_LIGHT_ENABLE_SQLITE": "ON",
+        "CAT_LIGHT_USE_BUNDLED_SQLITE": "ON",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/ninja-sqlite"
+      }
     }
   ],
   "buildPresets": [
@@ -42,12 +66,21 @@
       "configuration": "Release"
     },
     {
+      "name": "msvc-sqlite",
+      "configurePreset": "msvc-sqlite",
+      "configuration": "Release"
+    },
+    {
       "name": "msys2-ucrt64-release",
       "configurePreset": "msys2-ucrt64-release"
     },
     {
       "name": "ninja-release",
       "configurePreset": "ninja-release"
+    },
+    {
+      "name": "ninja-sqlite",
+      "configurePreset": "ninja-sqlite"
     }
   ]
 }

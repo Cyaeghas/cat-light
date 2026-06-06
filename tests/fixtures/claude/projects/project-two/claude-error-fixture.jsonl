@@ -1,0 +1,5 @@
+{"timestamp":"2026-06-05T11:00:00Z","type":"attachment","attachment":{"type":"hook","hookEvent":"UserPromptSubmit","hookName":"cat-light-fixture"}}
+{"timestamp":"2026-06-05T11:00:01Z","type":"attachment","attachment":{"type":"hook","hookEvent":"PreToolUse","hookName":"Bash"}}
+{"timestamp":"2026-06-05T11:00:02Z","type":"assistant","message":{"model":"claude-sonnet-fixture","content":[{"type":"tool_use","name":"Bash","input":{}}],"stop_reason":"tool_use","usage":{"input_tokens":700,"output_tokens":100,"cache_read_input_tokens":100}}}
+{"timestamp":"2026-06-05T11:00:03Z","type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"<redacted>"}]}}
+{"timestamp":"2026-06-05T11:00:04Z","type":"attachment","attachment":{"type":"hook_non_blocking_error","hookEvent":"PostToolUse","hookName":"Bash"}}

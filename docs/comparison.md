@@ -27,16 +27,19 @@ Implemented:
 - Daily token/event trend buckets and `history-trends-json`.
 - Local dashboard History view with range filtering and HTTP `/history`, `/history-summary`, `/history-trends`, `/sync` endpoints.
 - History storage backend boundary with default JSONL and optional CMake SQLite backend.
+- Vendored SQLite amalgamation build path for the SQLite backend.
 - Fixture tests for representative Codex rollout and Claude projects JSONL.
+- Expanded parser fixtures for approval, failed commands, patch edits, hook errors, and Claude tool-result errors.
 - Reversible hook install/uninstall/status for Claude `settings.json` and Codex `config.toml`.
 - Hook helper generation with `hook-install` and `hook-script`; Codex PowerShell helper preserves and chains the original notify command when possible.
+- Windows Win32 tray launcher for starting the local dashboard server.
 - Dashboard homepage focused on agent sessions.
 
 Not implemented yet:
 
 - Token attribution by tool.
 - SQLite persistence is optional and early; richer query/aggregation tables are still missing.
-- Native tray/floating window.
+- Cross-platform tray/floating window.
 - More real-world Codex / Claude JSONL fixtures and parser edge cases.
 - Full context window limit detection.
 - Richer trend charts with provider/model drilldown.

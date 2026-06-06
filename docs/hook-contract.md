@@ -231,7 +231,7 @@ Current implementation uses two append-only JSONL locations:
 
 The history JSONL envelope stores a stable dedupe key plus the normalized `cat-light.event.v1` event. This is the temporary backend for parser and sync development.
 
-Longer term, use SQLite:
+SQLite can be built through the vendored amalgamation:
 
 - `events`
 - `sessions`
