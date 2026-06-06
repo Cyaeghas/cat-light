@@ -1,31 +1,94 @@
 # cat-light
 
-`cat-light` 是一个本地优先的 Codex / Claude Code 状态灯与用量指示器。目标不是只显示订阅 quota，而是同时观察多个 Codex / Claude Code 会话的运行状态、token 消耗、上下文长度和额度窗口。
+[![build](https://github.com/Cyaeghas/cat-light/actions/workflows/build.yml/badge.svg)](https://github.com/Cyaeghas/cat-light/actions/workflows/build.yml)
 
-当前代码已经进入第二阶段原型：除了 quota usage，也能从本地 Codex / Claude Code JSONL 日志、手动事件入口和可逆 hook 安装合并出多会话 agent 状态，并通过 `sync` 做本地去重历史同步。SQLite 后端已经支持 vendored amalgamation 构建，Windows 托盘壳也有第一版。
+`cat-light` is a local-first status monitor for Codex and Claude Code. It watches active coding-agent sessions, token usage, context pressure, hooks, and history, then exposes the result through a CLI, local dashboard, Waybar JSON, Windows tray, and a compact floating desktop monitor.
 
-## 当前功能
+The project is written in C++ with CMake. The core stays dependency-light and cross-platform; richer native UI shells are kept as optional targets.
 
-- 读取 Codex CLI 的 `~/.codex/auth.json`。
-- 读取 Claude Code 的 `~/.claude/.credentials.json`，并支持 `CLAUDE_CONFIG_DIR`。
-- 请求 Codex 用量接口和 Claude OAuth 用量接口。
-- 60 秒本地缓存，失败时尽量回退到旧缓存。
-- Codex access token 失效时使用 refresh token 刷新并写回 `auth.json`。
-- 输出 `status`、`json`、`waybar`。
-- 输出 agent 状态：`state`、`sessions`、`sessions-json`、`agent-waybar`。
-- 同步历史：`sync`、`sync-json`、`history`、`history-json`。
-- 接收外部事件：`event --stdin`、CLI token/context 参数、`POST /event`。
-- 可逆安装 hook：`hook-install`、`hook-uninstall`、`hook-status`、`hook-script`。
-- 扫描 Codex 本地会话：`~/.codex/sessions/**/*.jsonl`。
-- 扫描 Claude Code 本地会话：`~/.claude/projects/**/*.jsonl`。
-- `doctor` 检查本机凭据、curl、缓存目录。
-- `doctor` 检查 hook 最近事件、构建工具和 SQLite 环境。
-- 可选 bundled SQLite 后端、Windows `cat-light-tray.exe` 托盘启动器和 `cat-light-float.exe` 桌面浮标。
-- `serve` 启动 `127.0.0.1` 本地服务，首页显示 agent sessions 和 history summary，并提供 `/usage`、`/state`、`/sessions`、`/history`、`/history-summary`、`/sync`、`/event`。
+## Why
 
-这些用量接口属于未公开稳定接口，可能会变。程序只读取本地凭据并访问官方端点，不上传遥测。
+Most existing status-bar tools focus on one narrow signal: quota usage, a single provider, or a single desktop shell. `cat-light` aims to combine four signals in one local tool:
 
-## Agent 状态命令
+| Layer | What it tracks |
+| --- | --- |
+| Live state | Multiple Codex / Claude Code sessions, including `starting`, `thinking`, `working`, `waiting`, `complete`, `error`, `idle`, and `stale`. |
+| Token usage | Input/output/cache/reasoning totals where available, plus session-level token totals from local logs. |
+| Context | Context used, context limit, remaining window, and percent used when the provider log exposes it. |
+| History | Deduped local events, daily trends, provider/model/project summaries, tool calls, and shell command activity. |
+
+The tool reads local credentials and local session logs. It does not upload prompts, responses, tool outputs, file contents, or telemetry.
+
+## Current Shape
+
+| Surface | Status | Notes |
+| --- | --- | --- |
+| CLI | Working | `status`, `json`, `waybar`, `state`, `sessions`, `history`, `sync`, `doctor`. |
+| Hooks | Working prototype | Reversible Codex `notify` and Claude `settings.json` hook install/uninstall. |
+| Local dashboard | Working prototype | Served on `127.0.0.1`; shows sessions, history summaries, and trends. |
+| Windows tray | Working prototype | Starts the local server and exposes quick actions. |
+| Windows floating monitor | Working prototype | Always-on-top desktop widget for active Codex / Claude state. |
+| SQLite backend | Optional prototype | Bundled SQLite amalgamation build path is available. |
+| Cross-platform native UI | Planned | CopperSpice, Qt, and wxWidgets are candidates for a future shell. |
+
+## Preview
+
+The Windows floating monitor is designed for the “small desktop status tile” workflow:
+
+```text
+cat-light                                  21:18
+waiting
+
+Claude 2 complete, 1 starting
+Codex  2 complete, 1 waiting
+
+Codex 2026-06- [waiting]
+project: 2026/06/04
+```
+
+It stays topmost, can be dragged, remembers its position in `%LOCALAPPDATA%\cat-light\float.ini`, and opens the dashboard on double-click. Right-click actions include sync, hook status, refresh, reset position, and quit.
+
+## Quick Start
+
+Build with Visual Studio / MSVC:
+
+```powershell
+cmake --preset msvc-release
+cmake --build --preset msvc-release
+```
+
+Build with bundled SQLite enabled:
+
+```powershell
+cmake --preset msvc-sqlite
+cmake --build --preset msvc-sqlite
+```
+
+Run the most useful commands:
+
+```powershell
+build\msvc-release\Release\cat-light.exe doctor
+build\msvc-release\Release\cat-light.exe state
+build\msvc-release\Release\cat-light.exe sessions --max-sessions 8
+build\msvc-release\Release\cat-light.exe serve --addr 127.0.0.1:8750
+```
+
+Start the Windows UI helpers:
+
+```powershell
+build\msvc-release\Release\cat-light-tray.exe
+build\msvc-release\Release\cat-light-float.exe
+```
+
+Open the dashboard:
+
+```text
+http://127.0.0.1:8750
+```
+
+## Agent State
+
+`cat-light` merges live events from hooks, passive JSONL scans, and manual events into per-session state.
 
 ```powershell
 cat-light state
@@ -35,39 +98,30 @@ cat-light agent-waybar
 cat-light sessions --provider codex --max-sessions 5
 ```
 
-手动写入事件：
+Manual event input is useful when wrapping unofficial APIs or custom launchers:
 
 ```powershell
 cat-light event --provider codex --session-id demo --state thinking --detail "Thinking"
 cat-light event --provider codex --session-id demo --state working --input-tokens 1000 --output-tokens 200 --context-used 1200 --context-limit 200000
 ```
 
-从 stdin 写入 JSON 事件：
+JSON event input:
 
 ```powershell
 '{"provider":"claude","session_id":"demo","state":"working"}' | cat-light event --stdin
 ```
 
-HTTP 写入事件：
-
-```powershell
-cat-light serve
-```
+HTTP event input:
 
 ```text
 POST http://127.0.0.1:8750/event
 GET  http://127.0.0.1:8750/state
 GET  http://127.0.0.1:8750/sessions
-GET  http://127.0.0.1:8750/history-summary
-GET  http://127.0.0.1:8750/history-trends?days=30
-POST http://127.0.0.1:8750/sync
 ```
 
-Windows PowerShell 下用 curl 发送 JSON，推荐写入临时文件再 `--data-binary @file`，避免命令行引号被吃掉。
+## History And Storage
 
-## 历史同步
-
-`sync` 会读取手动/hook 事件、本地 Codex rollout JSONL 和 Claude projects JSONL，写入去重后的历史事件流：
+`sync` reads manual events, hook events, Codex session JSONL, and Claude project JSONL, then writes a deduped local history stream.
 
 ```powershell
 cat-light sync --provider all
@@ -79,29 +133,16 @@ cat-light history-summary-json --provider codex
 cat-light history-trends-json --days 30
 ```
 
-`history-summary-json` 现在也包含 `tools` 和 `commands` 数组，用于观察工具调用和 shell 命令活动。
-
-当前默认历史后端是 `%LOCALAPPDATA%\cat-light\history\events.jsonl` 和 `sessions.json`，已经有稳定去重键。也预留了可选 SQLite 后端，构建时打开：
+Default JSONL storage lives under `%LOCALAPPDATA%\cat-light\history`. SQLite can be enabled at build time:
 
 ```powershell
-cmake -S . -B build\msvc-sqlite -DCAT_LIGHT_ENABLE_SQLITE=ON
+cmake -S . -B build\msvc-sqlite -G "Visual Studio 17 2022" -A x64 -DCAT_LIGHT_ENABLE_SQLITE=ON
+cmake --build build\msvc-sqlite --config Release
 ```
 
-或使用 preset：
-```powershell
-cmake --preset msvc-sqlite
-cmake --build --preset msvc-sqlite
-```
+## Hooks
 
-fixture 回归测试：
-
-```powershell
-.\scripts\test-fixtures.ps1
-```
-
-## Hook helper
-
-安装、查看和卸载本机 hook：
+Install, inspect, and remove local hooks:
 
 ```powershell
 cat-light hook-install --provider all --shell powershell
@@ -111,124 +152,28 @@ cat-light hook-install --provider claude --dry-run
 cat-light hook-script --provider codex --shell powershell
 ```
 
-`hook-install` 会写入 `%LOCALAPPDATA%\cat-light\hooks` 下的 helper 脚本，并修改 Claude `settings.json` / Codex `config.toml`。写入前会生成时间戳备份；`hook-uninstall` 只移除 cat-light 自己的 hook。Codex 原有 top-level `notify` 会保存到 `%LOCALAPPDATA%\cat-light\hooks\install.json` 并在卸载时恢复；PowerShell helper 会在运行 cat-light 后尽量继续调用原 notify。Claude helper 会从 hook stdin 读取 `UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`Notification`、`Stop`、`SessionEnd` 等事件并归一化成 `cat-light.event.v1`。
+Hook installation is designed to be reversible:
 
-## 下一阶段重点
-
-- 扩展 SQLite 查询表，继续细化项目、模型、工具和命令维度。
-- 增加更多真实脱敏 fixtures，覆盖 Codex rollout 和 Claude JSONL 的边缘形态。
-- 将 Windows tray 继续演进为跨平台 tray / floating UI。
-
-详见：
-
-- `docs/comparison.md`
-- `docs/hook-contract.md`
-- `docs/storage.md`
-- `docs/platform-roadmap.md`
-
-## Windows 构建
-
-### MSVC / Visual Studio
-
-你这台机器上 Visual Studio 2022 Community 和 VS 自带 CMake 已经存在，可以直接用：
-
-```powershell
-.\scripts\build-msvc.ps1
-```
-
-手动方式：
-
-```powershell
-& "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -S . -B build\msvc-release -G "Visual Studio 17 2022" -A x64
-& "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build build\msvc-release --config Release
-```
-
-CMake Presets 方式：
-
-```powershell
-cmake --preset msvc-release
-cmake --build --preset msvc-release
-```
-
-可选 SQLite 后端：
-
-```powershell
-cmake -S . -B build\msvc-sqlite -G "Visual Studio 17 2022" -A x64 -DCAT_LIGHT_ENABLE_SQLITE=ON
-cmake --build build\msvc-sqlite --config Release
-```
-
-产物：
-
-```text
-build\msvc-release\Release\cat-light.exe
-build\msvc-release\Release\cat-light-tray.exe
-build\msvc-release\Release\cat-light-float.exe
-```
-
-### MSYS2 / UCRT64
-
-如果 UCRT64 工具链还没装：
-
-```bash
-pacman -S --needed mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
-```
-
-然后：
-
-```powershell
-.\scripts\build-msys2.ps1
-```
-
-## 使用
-
-```powershell
-cat-light doctor
-cat-light status
-cat-light json
-cat-light waybar
-cat-light serve --addr 127.0.0.1:8750
-```
-
-常用参数：
-
-```powershell
-cat-light status --provider codex
-cat-light status --provider claude
-cat-light status --offline
-cat-light status --refresh
-cat-light status --no-token-refresh
-cat-light sessions --max-sessions 10
-```
-
-打开本地仪表盘：
-
-```text
-http://127.0.0.1:8750
-```
-
-Windows 桌面浮标：
-
-```powershell
-build\msvc-release\Release\cat-light-float.exe
-```
-
-浮标会常驻在屏幕右下角、保持置顶、可拖动，直接显示当前 Codex / Claude Code 会话状态。双击打开本地 dashboard，右键可同步历史、查看 hook 状态、刷新、重置位置或退出；拖动后的位置会保存到 `%LOCALAPPDATA%\cat-light\float.ini`。
-
-## Release
-
-GitHub Actions 会在 `main` 和 PR 上构建 SQLite-enabled 二进制。推送 `v*` tag 时会自动创建 GitHub Release：
-
-```powershell
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Windows artifact 包含 `cat-light.exe`、`cat-light-tray.exe` 和 `cat-light-float.exe`。
+- Helper scripts are written under `%LOCALAPPDATA%\cat-light\hooks`.
+- Claude `settings.json` and Codex `config.toml` are backed up before modification.
+- Codex top-level `notify` is preserved in the install manifest and restored on uninstall.
+- The PowerShell helper tries to continue calling the original Codex notify command after recording a `cat-light` event.
 
 ## Waybar
 
 ```jsonc
 "custom/cat-light": {
+  "exec": "cat-light agent-waybar",
+  "return-type": "json",
+  "interval": 5,
+  "tooltip": true
+}
+```
+
+Quota-oriented output is also available:
+
+```jsonc
+"custom/cat-light-quota": {
   "exec": "cat-light waybar",
   "return-type": "json",
   "interval": 300,
@@ -236,15 +181,61 @@ Windows artifact 包含 `cat-light.exe`、`cat-light-tray.exe` 和 `cat-light-fl
 }
 ```
 
-## 参考方向
+## Build Outputs
 
-- `mryll/codexbar`: 读取 Codex OAuth 凭据并输出状态栏 JSON。
-- `mryll/claudebar`: 读取 Claude Code OAuth 凭据并输出状态栏 JSON。
-- `mm7894215/TokenTracker`: 本地聚合、多工具仪表盘方向。
-- `Bayern4ever-dot/code-light`: 轻量指示器方向。
+Windows MSVC release builds produce:
 
-## 之后的 UI
+```text
+build\msvc-release\Release\cat-light.exe
+build\msvc-release\Release\cat-light-tray.exe
+build\msvc-release\Release\cat-light-float.exe
+```
 
-- 继续打磨 Windows 托盘和桌面浮标外壳；跨平台 UI 可选 CopperSpice/Qt/wxWidgets。
-- 托盘优先显示 agent 状态，quota 作为次要信息。
-- 本地仪表盘显示每个会话、项目、模型、token 和上下文占用。
+GitHub Actions builds SQLite-enabled binaries on Windows, Linux, and macOS. The Windows artifact contains all three Windows executables.
+
+## Reference Projects
+
+`cat-light` borrows ideas from several useful projects while trying to combine them into one local-first monitor.
+
+| Project | What is useful for `cat-light` |
+| --- | --- |
+| [Bayern4ever-dot/code-light](https://github.com/Bayern4ever-dot/code-light) | Product direction: lightweight indicator, tray/floating widget, local dashboard, active status plus token usage. |
+| [mryll/codexbar](https://github.com/mryll/codexbar) | Codex auth reading, OAuth refresh, quota endpoint usage, cache fallback, Waybar formatting. |
+| [mryll/claudebar](https://github.com/mryll/claudebar) | Claude Code quota tracking, cache/stale handling, status-bar presentation. |
+| [mm7894215/TokenTracker](https://github.com/mm7894215/TokenTracker) | Local aggregation, hook install flows, SQLite-backed history, multi-tool token tracking. |
+| [copperspice/copperspice](https://github.com/copperspice/copperspice) | Candidate future cross-platform C++ GUI shell; attractive but heavier and C++20-oriented. |
+
+More detailed notes live in [docs/comparison.md](docs/comparison.md).
+
+## Roadmap
+
+Near-term:
+
+- Add richer SQLite query tables for provider, model, project, tool, and command drilldowns.
+- Improve token attribution by tool and command.
+- Add more real-world sanitized Codex / Claude JSONL fixtures.
+- Polish the Windows floating monitor and tray shell.
+- Add a packaged release flow with clearer installation steps.
+
+Longer-term:
+
+- Cross-platform tray or floating UI shell.
+- More complete Claude OAuth refresh and quota response handling.
+- Pricing/model metadata for estimated cost views.
+- Better dashboard charts for trends, context, and session history.
+
+## Development
+
+Run fixture tests:
+
+```powershell
+.\scripts\test-fixtures.ps1
+.\scripts\test-fixtures.ps1 -Exe build\msvc-sqlite\Release\cat-light.exe -Storage sqlite
+```
+
+Useful docs:
+
+- [Hook contract](docs/hook-contract.md)
+- [Storage design](docs/storage.md)
+- [Platform roadmap](docs/platform-roadmap.md)
+- [Reference comparison](docs/comparison.md)
