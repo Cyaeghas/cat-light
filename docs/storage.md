@@ -21,6 +21,8 @@ Synced history:
 
 `history-summary` counts events directly, but token totals come from merged sessions instead of summing every usage snapshot. This avoids double-counting providers that emit cumulative token usage.
 
+Tool and command aggregates currently count events and distinct sessions. They intentionally do not attribute cumulative session tokens to a tool, because provider logs usually report total usage snapshots rather than per-tool token deltas.
+
 History readers support UTC time windows with `--since`, `--until`, and `--days`. Date-only `--until` values include the whole UTC day. Daily trend buckets attribute event counts by event timestamp and token totals by each merged session's latest activity day, which preserves cumulative-token semantics.
 
 ## Commands

@@ -22,6 +22,7 @@ Implemented:
 - Basic token/context extraction from local logs.
 - `sync`, `sync-json`, `history`, and `history-json` with deduped history JSONL.
 - `history-summary` and `history-summary-json` aggregating tokens/events by provider, model, and project from merged sessions.
+- Tool and shell-command activity aggregates in history summaries.
 - `--since`, `--until`, and `--days` filters for history readers.
 - Daily token/event trend buckets and `history-trends-json`.
 - Local dashboard History view with range filtering and HTTP `/history`, `/history-summary`, `/history-trends`, `/sync` endpoints.
@@ -33,7 +34,7 @@ Implemented:
 
 Not implemented yet:
 
-- Token history by tool.
+- Token attribution by tool.
 - SQLite persistence is optional and early; richer query/aggregation tables are still missing.
 - Native tray/floating window.
 - More real-world Codex / Claude JSONL fixtures and parser edge cases.

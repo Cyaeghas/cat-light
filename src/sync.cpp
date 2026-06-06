@@ -76,6 +76,36 @@ std::string aggregate_key_or_unknown(const std::string &value) {
   return value.empty() ? "(unknown)" : value;
 }
 
+std::string session_identity(const AgentEvent &event) {
+  if (!event.instance_id.empty()) {
+    return event.instance_id;
+  }
+  std::string key = event.provider + ":";
+  key += event.session_id.empty() ? "(unknown)" : event.session_id;
+  if (event.pid > 0) {
+    key += ":" + std::to_string(event.pid);
+  }
+  return key;
+}
+
+bool is_shell_tool(const std::string &tool) {
+  const std::string lower = to_lower(tool);
+  return lower == "shell_command" || lower == "bash" || lower == "shell" || lower == "terminal";
+}
+
+std::string command_key_from_event(const AgentEvent &event) {
+  if (!is_shell_tool(event.tool_name)) {
+    return "";
+  }
+  const std::string detail = trim(event.detail);
+  const size_t open = detail.rfind('(');
+  const size_t close = detail.rfind(')');
+  if (open == std::string::npos || close == std::string::npos || close <= open + 1) {
+    return "";
+  }
+  return trim(detail.substr(open + 1, close - open - 1));
+}
+
 std::vector<HistoryAggregate> sorted_aggregates(const std::map<std::string, HistoryAggregate> &items) {
   std::vector<HistoryAggregate> out;
   for (const auto &entry : items) {
@@ -128,6 +158,15 @@ std::string format_token_total(long long value) {
     return std::to_string(value / 1000) + "k";
   }
   return std::to_string(value);
+}
+
+void set_tool_sessions(std::map<std::string, HistoryAggregate> &groups,
+                       const std::map<std::string, std::set<std::string>> &sessions) {
+  for (auto &entry : groups) {
+    if (auto found = sessions.find(entry.first); found != sessions.end()) {
+      entry.second.sessions = static_cast<int>(found->second.size());
+    }
+  }
 }
 
 } // namespace
@@ -232,10 +271,14 @@ HistorySummary summarize_history(const Options &options) {
   std::map<std::string, HistoryAggregate> providers;
   std::map<std::string, HistoryAggregate> models;
   std::map<std::string, HistoryAggregate> projects;
+  std::map<std::string, HistoryAggregate> tools;
+  std::map<std::string, HistoryAggregate> commands;
   std::map<std::string, HistoryDailyAggregate> daily;
   std::map<std::string, int> provider_events;
   std::map<std::string, int> model_events;
   std::map<std::string, int> project_events;
+  std::map<std::string, std::set<std::string>> tool_sessions;
+  std::map<std::string, std::set<std::string>> command_sessions;
   auto daily_bucket = [&](TimePoint timestamp) -> HistoryDailyAggregate & {
     const std::string date = format_utc_date(timestamp);
     HistoryDailyAggregate &bucket = daily[date];
@@ -252,6 +295,20 @@ HistorySummary summarize_history(const Options &options) {
     provider_events[provider_key]++;
     model_events[model_key]++;
     project_events[project_key]++;
+    if (!event.tool_name.empty()) {
+      const std::string tool_key = aggregate_key_or_unknown(event.tool_name);
+      HistoryAggregate &aggregate = tools[tool_key];
+      aggregate.key = tool_key;
+      ++aggregate.events;
+      tool_sessions[tool_key].insert(session_identity(event));
+    }
+    const std::string command_key = command_key_from_event(event);
+    if (!command_key.empty()) {
+      HistoryAggregate &aggregate = commands[command_key];
+      aggregate.key = command_key;
+      ++aggregate.events;
+      command_sessions[command_key].insert(session_identity(event));
+    }
   }
 
   auto sessions = merge_agent_events(events);
@@ -287,9 +344,13 @@ HistorySummary summarize_history(const Options &options) {
   for (auto &entry : projects) {
     entry.second.events = project_events[entry.first];
   }
+  set_tool_sessions(tools, tool_sessions);
+  set_tool_sessions(commands, command_sessions);
   summary.providers = sorted_aggregates(providers);
   summary.models = sorted_aggregates(models);
   summary.projects = sorted_aggregates(projects);
+  summary.tools = sorted_aggregates(tools);
+  summary.commands = sorted_aggregates(commands);
   for (const auto &entry : daily) {
     summary.daily.push_back(entry.second);
   }
@@ -315,6 +376,8 @@ Json history_summary_to_json(const HistorySummary &summary) {
   obj["providers"] = add_array(summary.providers);
   obj["models"] = add_array(summary.models);
   obj["projects"] = add_array(summary.projects);
+  obj["tools"] = add_array(summary.tools);
+  obj["commands"] = add_array(summary.commands);
   Json::array_type daily;
   for (const auto &day : summary.daily) {
     daily.push_back(daily_to_json(day));
@@ -367,6 +430,8 @@ std::string render_history_summary_text(const HistorySummary &summary) {
   render_group("Providers", summary.providers);
   render_group("Models", summary.models);
   render_group("Projects", summary.projects);
+  render_group("Tools", summary.tools);
+  render_group("Commands", summary.commands);
   return out.str();
 }
 

@@ -78,6 +78,8 @@ cat-light history-summary-json --provider codex
 cat-light history-trends-json --days 30
 ```
 
+`history-summary-json` 现在也包含 `tools` 和 `commands` 数组，用于观察工具调用和 shell 命令活动。
+
 当前默认历史后端是 `%LOCALAPPDATA%\cat-light\history\events.jsonl` 和 `sessions.json`，已经有稳定去重键。也预留了可选 SQLite 后端，构建时打开：
 
 ```powershell

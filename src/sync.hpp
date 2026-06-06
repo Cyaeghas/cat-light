@@ -47,6 +47,8 @@ struct HistorySummary {
   std::vector<HistoryAggregate> providers;
   std::vector<HistoryAggregate> models;
   std::vector<HistoryAggregate> projects;
+  std::vector<HistoryAggregate> tools;
+  std::vector<HistoryAggregate> commands;
   std::vector<HistoryDailyAggregate> daily;
 };
 

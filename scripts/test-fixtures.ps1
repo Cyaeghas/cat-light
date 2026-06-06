@@ -61,6 +61,24 @@ $providerCount = @($summary.providers).Count
 if ($providerCount -ne 2) {
   throw "expected 2 provider aggregates, got $providerCount"
 }
+$shellTool = $summary.tools | Where-Object { $_.key -eq "shell_command" } | Select-Object -First 1
+if (-not $shellTool) {
+  throw "missing shell_command tool aggregate"
+}
+if ($shellTool.events -ne 2) {
+  throw "expected shell_command tool events 2, got $($shellTool.events)"
+}
+$bashTool = $summary.tools | Where-Object { $_.key -eq "Bash" } | Select-Object -First 1
+if (-not $bashTool) {
+  throw "missing Bash tool aggregate"
+}
+$cmakeCommand = $summary.commands | Where-Object { $_.key -eq "cmake" } | Select-Object -First 1
+if (-not $cmakeCommand) {
+  throw "missing cmake command aggregate"
+}
+if ($cmakeCommand.events -ne 1) {
+  throw "expected cmake command events 1, got $($cmakeCommand.events)"
+}
 if ($summaryWindow.tokens.total -ne 4350) {
   throw "expected date-window summary total tokens 4350, got $($summaryWindow.tokens.total)"
 }

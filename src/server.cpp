@@ -415,10 +415,16 @@ std::string dashboard_html() {
     }
     function renderGroup(title, items) {
       const section = document.createElement('section');
-      const rows = (items || []).slice(0, 8).map(item => `<div class="row">
-        <span class="name">${escapeHtml(item.key)}</span>
-        <span class="value">${escapeHtml(formatTokens(item.tokens?.total))} | ${Number(item.sessions || 0)} sessions</span>
-      </div>`).join('');
+      const rows = (items || []).slice(0, 8).map(item => {
+        const tokens = Number(item.tokens?.total || 0);
+        const sessions = Number(item.sessions || 0);
+        const events = Number(item.events || 0);
+        const value = tokens > 0 ? `${formatTokens(tokens)} tokens | ${sessions} sessions` : `${events} events | ${sessions} sessions`;
+        return `<div class="row">
+          <span class="name">${escapeHtml(item.key)}</span>
+          <span class="value">${escapeHtml(value)}</span>
+        </div>`;
+      }).join('');
       section.innerHTML = `<div class="provider"><h2>${escapeHtml(title)}</h2><span class="state">${Number((items || []).length)}</span></div>${rows || '<pre>--</pre>'}`;
       grid.appendChild(section);
     }
@@ -457,6 +463,8 @@ std::string dashboard_html() {
       renderGroup('Providers', summary.providers);
       renderGroup('Models', summary.models);
       renderGroup('Projects', summary.projects);
+      renderGroup('Tools', summary.tools);
+      renderGroup('Commands', summary.commands);
     }
     async function tick() {
       try {
