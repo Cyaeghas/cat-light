@@ -20,7 +20,7 @@
 - 扫描 Claude Code 本地会话：`~/.claude/projects/**/*.jsonl`。
 - `doctor` 检查本机凭据、curl、缓存目录。
 - `doctor` 检查 hook 最近事件、构建工具和 SQLite 环境。
-- 可选 bundled SQLite 后端和 Windows `cat-light-tray.exe` 托盘启动器。
+- 可选 bundled SQLite 后端、Windows `cat-light-tray.exe` 托盘启动器和 `cat-light-float.exe` 桌面浮标。
 - `serve` 启动 `127.0.0.1` 本地服务，首页显示 agent sessions 和 history summary，并提供 `/usage`、`/state`、`/sessions`、`/history`、`/history-summary`、`/sync`、`/event`。
 
 这些用量接口属于未公开稳定接口，可能会变。程序只读取本地凭据并访问官方端点，不上传遥测。
@@ -162,6 +162,7 @@ cmake --build build\msvc-sqlite --config Release
 ```text
 build\msvc-release\Release\cat-light.exe
 build\msvc-release\Release\cat-light-tray.exe
+build\msvc-release\Release\cat-light-float.exe
 ```
 
 ### MSYS2 / UCRT64
@@ -205,6 +206,14 @@ cat-light sessions --max-sessions 10
 http://127.0.0.1:8750
 ```
 
+Windows 桌面浮标：
+
+```powershell
+build\msvc-release\Release\cat-light-float.exe
+```
+
+浮标会常驻在屏幕右下角、保持置顶、可拖动，直接显示当前 Codex / Claude Code 会话状态。双击打开本地 dashboard，右键可同步历史、查看 hook 状态、刷新、重置位置或退出；拖动后的位置会保存到 `%LOCALAPPDATA%\cat-light\float.ini`。
+
 ## Release
 
 GitHub Actions 会在 `main` 和 PR 上构建 SQLite-enabled 二进制。推送 `v*` tag 时会自动创建 GitHub Release：
@@ -214,7 +223,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Windows artifact 包含 `cat-light.exe` 和 `cat-light-tray.exe`。
+Windows artifact 包含 `cat-light.exe`、`cat-light-tray.exe` 和 `cat-light-float.exe`。
 
 ## Waybar
 
@@ -236,6 +245,6 @@ Windows artifact 包含 `cat-light.exe` 和 `cat-light-tray.exe`。
 
 ## 之后的 UI
 
-- 增加系统托盘外壳：Windows 可选 Win32/WinUI，跨平台可选 Qt/wxWidgets。
+- 继续打磨 Windows 托盘和桌面浮标外壳；跨平台 UI 可选 CopperSpice/Qt/wxWidgets。
 - 托盘优先显示 agent 状态，quota 作为次要信息。
 - 本地仪表盘显示每个会话、项目、模型、token 和上下文占用。

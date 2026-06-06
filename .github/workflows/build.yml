@@ -55,6 +55,7 @@ jobs:
           path: |
             build/msvc-release/Release/cat-light.exe
             build/msvc-release/Release/cat-light-tray.exe
+            build/msvc-release/Release/cat-light-float.exe
       - name: Upload Unix artifact
         if: runner.os != 'Windows'
         uses: actions/upload-artifact@v7

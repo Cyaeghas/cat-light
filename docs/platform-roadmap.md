@@ -19,11 +19,20 @@ Yes. The intended shape is:
    - Opens the local dashboard or a small WebView.
    - Exposes menu actions: sync, hook status, install/uninstall hooks, quit.
 
-3. UI surface:
+3. Floating monitor:
+   - Shows active Codex / Claude sessions without opening a browser.
+   - Stays topmost and draggable for a Traffic Monitor style workflow.
+   - Opens the local dashboard for history and detailed views.
+
+4. UI surface:
    - Minimal local web dashboard at first.
    - Later: WebView2 on Windows, WKWebView on macOS, WebKitGTK/Qt WebEngine on Linux, or one cross-platform toolkit.
 
-The first tray target is now a Windows Win32 launcher. It starts the localhost dashboard server, exposes tray actions for opening the dashboard, syncing history, checking hook status, and quitting. A cross-platform tray can come later through Qt or wxWidgets.
+The first tray target is now a Windows Win32 launcher. It starts the localhost dashboard server, exposes tray actions for opening the dashboard, syncing history, checking hook status, and quitting.
+
+The first floating monitor target is also a Windows Win32 executable. It starts the same localhost dashboard server, polls `agent-waybar`, and renders a compact always-on-top status window with the current Codex / Claude activity. It remembers the dragged window position in `%LOCALAPPDATA%\cat-light\float.ini`.
+
+A cross-platform tray or floating UI can come later through CopperSpice, Qt, or wxWidgets. CopperSpice is attractive because it is CMake-based, C++-focused, and has GUI/network/SQL modules, but it currently implies a C++20 GUI dependency. The core should stay C++17 and dependency-light until we deliberately split out a richer cross-platform UI shell.
 
 ## Cross-Platform Build
 
@@ -39,6 +48,8 @@ Recommended build layers:
 - Core CLI/server: always built by CMake on Windows, Linux, macOS.
 - Optional storage backend: `CAT_LIGHT_ENABLE_SQLITE=ON`.
 - Optional Windows tray target: `CAT_LIGHT_ENABLE_TRAY=ON`, producing `cat-light-tray.exe` on Windows.
+- Optional Windows floating monitor target: `CAT_LIGHT_ENABLE_FLOAT=ON`, producing `cat-light-float.exe` on Windows.
+- Candidate cross-platform UI shell: CopperSpice/Qt/wxWidgets, kept separate from the core CLI/server.
 - Packaging: separate CMake install/CPack or per-platform scripts.
 
 ## Current Commands Useful For A Tray Shell
