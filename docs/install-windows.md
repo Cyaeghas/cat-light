@@ -1,6 +1,6 @@
 # Windows Installation
 
-This guide covers the current Windows prototype. The release archive contains a CLI/server binary plus two optional UI helpers.
+This guide covers the current Windows release. The release archive contains a CLI/server binary plus two optional UI helpers.
 
 ## Download
 

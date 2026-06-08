@@ -43,12 +43,12 @@ The tool reads local credentials and local session logs. It does not upload prom
 
 | Surface | Status | Notes |
 | --- | --- | --- |
-| CLI | Working | `status`, `json`, `waybar`, `state`, `sessions`, `history`, `sync`, `doctor`. |
-| Hooks | Working prototype | Reversible Codex `notify` and Claude `settings.json` hook install/uninstall. |
-| Local dashboard | Working prototype | Served on `127.0.0.1`; shows sessions, history summaries, and trends. |
-| Windows tray | Working prototype | Starts the local server and exposes quick actions. |
-| Windows floating monitor | Working prototype | Always-on-top desktop widget for active Codex / Claude state. |
-| SQLite backend | Optional prototype | Bundled SQLite amalgamation build path is available. |
+| CLI | v0.1 available | `status`, `json`, `waybar`, `state`, `sessions`, `history`, `sync`, `doctor`. |
+| Hooks | v0.1 available | Reversible Codex `notify` and Claude `settings.json` hook install/uninstall. |
+| Local dashboard | v0.1 available | Served on `127.0.0.1`; shows sessions, history summaries, and trends. |
+| Windows tray | v0.1 available | Starts the local server and exposes quick actions. |
+| Windows floating monitor | v0.1 available | Always-on-top desktop widget for active Codex / Claude state. |
+| SQLite backend | Optional v0.1 backend | Bundled SQLite amalgamation build path is available; richer query tables are planned for v0.3. |
 | Cross-platform native UI | Planned | CopperSpice, Qt, and wxWidgets are candidates for a future shell. |
 
 ## Preview
@@ -285,20 +285,27 @@ More detailed notes live in [docs/comparison.md](docs/comparison.md).
 
 ## Roadmap
 
-Near-term:
+v0.2 reliability and parsing:
+
+- Add more real-world sanitized Codex / Claude JSONL fixtures.
+- Harden parser edge cases for approvals, aborted turns, failed tools, partial logs, and provider schema drift.
+- Improve token/context extraction, especially cache and reasoning fields.
+- Improve Claude OAuth refresh and quota window handling.
+- Add clearer `doctor` checks for hook health, startup registration, and stale local logs.
+
+v0.3 storage and analytics:
 
 - Add richer SQLite query tables for provider, model, project, tool, and command drilldowns.
-- Improve token attribution by tool and command.
-- Add more real-world sanitized Codex / Claude JSONL fixtures.
-- Polish the Windows floating monitor and tray shell.
-- Add a packaged release flow with clearer installation steps.
+- Add migration/version metadata for local databases.
+- Improve token attribution where provider logs expose safe per-tool deltas.
+- Add better dashboard charts for trends, context, and session history.
 
-Longer-term:
+v0.4 desktop UX:
 
 - Cross-platform tray or floating UI shell.
-- More complete Claude OAuth refresh and quota response handling.
+- Better Windows tray icon status rendering and notifications.
+- Installer or portable-app packaging polish.
 - Pricing/model metadata for estimated cost views.
-- Better dashboard charts for trends, context, and session history.
 
 ## Development
 

@@ -85,7 +85,7 @@ cat-light hook-script --provider codex
 cat-light hook-script --provider claude
 ```
 
-Implemented or planned local HTTP endpoints:
+Implemented local HTTP endpoints:
 
 ```text
 POST /event
@@ -93,8 +93,10 @@ GET  /state
 GET  /sessions
 GET  /history
 GET  /history-summary
+GET  /history-trends
 GET  /usage
 POST /sync
+GET  /sync
 GET  /health
 ```
 
@@ -181,7 +183,7 @@ Hook:
 }
 ```
 
-For live state, we may also support `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, and `Notification` when available. `SessionEnd` alone is enough for sync and token rollups, but not enough for real-time thinking/working.
+For live state, the current helper installs more than `SessionEnd` when available. `SessionEnd` alone is enough for sync and token rollups, but not enough for real-time thinking/working.
 
 Current install:
 
@@ -229,15 +231,11 @@ Current implementation uses two append-only JSONL locations:
 %LOCALAPPDATA%/cat-light/history/sessions.json
 ```
 
-The history JSONL envelope stores a stable dedupe key plus the normalized `cat-light.event.v1` event. This is the temporary backend for parser and sync development.
+The history JSONL envelope stores a stable dedupe key plus the normalized `cat-light.event.v1` event. This remains the default backend because it is easy to inspect and debug.
 
 SQLite can be built through the vendored amalgamation:
 
 - `events`
 - `sessions`
-- `token_usage`
-- `context_snapshots`
-- `quota_snapshots`
-- `hook_installations`
 
-SQLite is acceptable for a C++ single-binary app by vendoring the SQLite amalgamation.
+SQLite currently stores normalized events and latest sessions. The storage roadmap covers query-friendly tables such as `token_usage`, `context_snapshots`, `quota_snapshots`, `tool_calls`, `commands`, and `hook_installations`.

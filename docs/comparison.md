@@ -1,6 +1,6 @@
-# Comparison And Missing Pieces
+# Comparison And Remaining Gaps
 
-This file records what the reference projects do and what `cat-light` still lacks.
+This file records what the reference projects do, what `cat-light` already covers, and what still remains.
 
 ## Current Cat-Light Prototype
 
@@ -33,16 +33,22 @@ Implemented:
 - Reversible hook install/uninstall/status for Claude `settings.json` and Codex `config.toml`.
 - Hook helper generation with `hook-install` and `hook-script`; Codex PowerShell helper preserves and chains the original notify command when possible.
 - Windows Win32 tray launcher for starting the local dashboard server.
-- Dashboard homepage focused on agent sessions.
+- Windows Win32 floating monitor with position persistence, cat-light branding, and current-user startup registration.
+- Dashboard homepage focused on agent sessions, with history and trend views.
+- Public GitHub release packaging for Windows, Linux, and macOS.
+- Local Windows zip packaging script.
 
 Not implemented yet:
 
 - Token attribution by tool.
 - SQLite persistence is optional and early; richer query/aggregation tables are still missing.
-- Cross-platform tray/floating window.
+- Cross-platform native tray/floating window.
 - More real-world Codex / Claude JSONL fixtures and parser edge cases.
 - Full context window limit detection.
 - Richer trend charts with provider/model drilldown.
+- Better tray icon status rendering and notification thresholds.
+- VS Code/process focus integration.
+- Installer/autoupdate experience.
 
 ## code-light
 
@@ -166,6 +172,7 @@ What we should copy conceptually:
    - CLI and JSON.
    - Waybar/statebar format.
    - Local dashboard.
-   - Native tray/floating UI later.
+   - Windows native tray/floating UI.
+   - Cross-platform native shell later.
 
-The current code now has a first pass of layer 1 plus the earlier layer 2 quota prototype. The next milestone should make hooks reversible and add durable history/tests.
+The current code now has a public `v0.1` pass across all three layers. The next milestone should focus less on adding surfaces and more on reliability: parser fixtures, token/context accuracy, Claude quota hardening, and query-friendly storage.

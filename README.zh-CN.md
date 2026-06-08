@@ -43,12 +43,12 @@
 
 | 界面 | 状态 | 说明 |
 | --- | --- | --- |
-| CLI | 可用 | `status`、`json`、`waybar`、`state`、`sessions`、`history`、`sync`、`doctor`。 |
-| Hooks | 原型可用 | 可逆安装 Codex `notify` 和 Claude `settings.json` hook。 |
-| 本地 dashboard | 原型可用 | 运行在 `127.0.0.1`，显示会话、历史摘要和趋势。 |
-| Windows 托盘 | 原型可用 | 启动本地服务并提供快捷操作。 |
-| Windows 浮标 | 原型可用 | 置顶桌面小窗口，显示 Codex / Claude 当前活动。 |
-| SQLite 后端 | 可选原型 | 已支持 bundled SQLite amalgamation 构建。 |
+| CLI | v0.1 可用 | `status`、`json`、`waybar`、`state`、`sessions`、`history`、`sync`、`doctor`。 |
+| Hooks | v0.1 可用 | 可逆安装 Codex `notify` 和 Claude `settings.json` hook。 |
+| 本地 dashboard | v0.1 可用 | 运行在 `127.0.0.1`，显示会话、历史摘要和趋势。 |
+| Windows 托盘 | v0.1 可用 | 启动本地服务并提供快捷操作。 |
+| Windows 浮标 | v0.1 可用 | 置顶桌面小窗口，显示 Codex / Claude 当前活动。 |
+| SQLite 后端 | 可选 v0.1 后端 | 已支持 bundled SQLite amalgamation 构建；更丰富的查询表计划放在 v0.3。 |
 | 跨平台原生 UI | 计划中 | CopperSpice、Qt、wxWidgets 是后续候选。 |
 
 ## 安装
@@ -248,20 +248,27 @@ quota 输出：
 
 ## 路线图
 
-近期：
+v0.2 可靠性与解析：
+
+- 增加更多真实脱敏 Codex / Claude JSONL fixtures。
+- 强化 approval、aborted turn、failed tool、partial log 和 provider schema drift 的解析边界。
+- 改进 token/context 提取，尤其是 cache 和 reasoning 字段。
+- 改进 Claude OAuth refresh 和 quota window 处理。
+- 增强 `doctor`，检查 hook 健康、开机启动和 stale 本地日志。
+
+v0.3 存储与分析：
 
 - 增强 SQLite 查询表，支持 provider、model、project、tool 和 command drilldown。
-- 改进 token 到工具/命令的归因。
-- 增加更多真实脱敏 Codex / Claude JSONL fixtures。
-- 打磨 Windows 浮标和托盘。
-- 增加更清晰的安装和打包 release 流程。
+- 增加本地数据库 migration/version metadata。
+- 在 provider 日志安全暴露 per-tool delta 时改进 token 归因。
+- 改进 dashboard 的趋势、上下文和会话历史图表。
 
-长期：
+v0.4 桌面体验：
 
 - 跨平台托盘或浮标 UI。
-- 更完整的 Claude OAuth refresh 和 quota response 处理。
+- 改进 Windows 托盘图标状态渲染和通知。
+- 改进 installer 或 portable-app 打包体验。
 - 模型价格元数据和估算成本视图。
-- 更好的 dashboard 趋势、上下文和会话历史图表。
 
 ## 开发
 

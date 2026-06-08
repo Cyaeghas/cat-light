@@ -1,6 +1,6 @@
 # Storage Roadmap
 
-`cat-light` currently has a lightweight JSONL history backend plus an optional SQLite backend behind the same storage interface.
+`cat-light` currently has a lightweight JSONL history backend plus an optional SQLite backend behind the same storage interface. JSONL remains the simplest and most debuggable default; SQLite is the path for richer local analytics.
 
 ## Current Files
 
@@ -73,13 +73,23 @@ The default SQLite build uses the vendored SQLite amalgamation in `vendor/sqlite
 
 ## SQLite Target
 
-The optional SQLite backend currently stores normalized events and latest sessions. The next step is to expand it into query-friendly tables:
+The optional SQLite backend currently stores normalized events and latest sessions. The v0.3 storage milestone should expand it into query-friendly tables:
 
 - `events`
 - `sessions`
 - `token_usage`
 - `context_snapshots`
 - `quota_snapshots`
+- `tool_calls`
+- `commands`
 - `hook_installations`
+- `schema_migrations`
 
 The existing `sync_history`, `read_history_events`, and `read_history_sessions` functions are the backend boundary, so parser work should not need to change when the schema grows.
+
+## Priorities
+
+1. Keep JSONL and SQLite behavior equivalent for current commands.
+2. Add schema versioning before adding more SQLite tables.
+3. Keep privacy rules at the storage boundary: no prompt text, assistant text, command output, tool output, file contents, or environment variables.
+4. Add dashboard drilldowns only after the backing queries are stable.
