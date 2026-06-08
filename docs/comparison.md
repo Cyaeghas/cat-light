@@ -2,7 +2,7 @@
 
 This file records what the reference projects do, what `cat-light` already covers, and what still remains.
 
-## Current Cat-Light Prototype
+## Current Cat-Light v0.2
 
 Implemented:
 
@@ -18,8 +18,8 @@ Implemented:
 - HTTP `POST /event`, `GET /state`, `GET /sessions`.
 - Codex local JSONL scan under `~/.codex/sessions`.
 - Claude local JSONL scan under `~/.claude/projects`.
-- Multi-session merge by `provider:session_id`.
-- Basic token/context extraction from local logs.
+- Multi-session merge by stable `instance_id`, including passive-log project hints to avoid same-name session collisions.
+- Hardened token/context extraction from local logs and wrapper/API events, including prompt/completion aliases, cache fields, and reasoning fields.
 - `sync`, `sync-json`, `history`, and `history-json` with deduped history JSONL.
 - `history-summary` and `history-summary-json` aggregating tokens/events by provider, model, and project from merged sessions.
 - Tool and shell-command activity aggregates in history summaries.
@@ -29,7 +29,8 @@ Implemented:
 - History storage backend boundary with default JSONL and optional CMake SQLite backend.
 - Vendored SQLite amalgamation build path for the SQLite backend.
 - Fixture tests for representative Codex rollout and Claude projects JSONL.
-- Expanded parser fixtures for approval, failed commands, patch edits, hook errors, and Claude tool-result errors.
+- Expanded parser fixtures for approval, failed commands, patch edits, hook errors, Claude tool-result errors, nested tool-result errors, schema drift, and same-name sessions.
+- `doctor` checks for local log roots, stale or malformed JSONL, hook events, SQLite backend availability, and Windows float startup registration.
 - Reversible hook install/uninstall/status for Claude `settings.json` and Codex `config.toml`.
 - Hook helper generation with `hook-install` and `hook-script`; Codex PowerShell helper preserves and chains the original notify command when possible.
 - Windows Win32 tray launcher for starting the local dashboard server.
@@ -43,7 +44,7 @@ Not implemented yet:
 - Token attribution by tool.
 - SQLite persistence is optional and early; richer query/aggregation tables are still missing.
 - Cross-platform native tray/floating window.
-- More real-world Codex / Claude JSONL fixtures and parser edge cases.
+- Broader real-world Codex / Claude JSONL fixtures, especially from new provider schema variants.
 - Full context window limit detection.
 - Richer trend charts with provider/model drilldown.
 - Better tray icon status rendering and notification thresholds.
@@ -175,4 +176,4 @@ What we should copy conceptually:
    - Windows native tray/floating UI.
    - Cross-platform native shell later.
 
-The current code now has a public `v0.1` pass across all three layers. The next milestone should focus less on adding surfaces and more on reliability: parser fixtures, token/context accuracy, Claude quota hardening, and query-friendly storage.
+The current code now has a public `v0.2` pass across all three layers, with the first reliability hardening round complete. The next milestone should focus on storage and analytics: richer SQLite tables, query-friendly history, dashboard drilldowns, and cautious provider quota improvements.

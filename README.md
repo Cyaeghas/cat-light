@@ -43,12 +43,12 @@ The tool reads local credentials and local session logs. It does not upload prom
 
 | Surface | Status | Notes |
 | --- | --- | --- |
-| CLI | v0.1 available | `status`, `json`, `waybar`, `state`, `sessions`, `history`, `sync`, `doctor`. |
-| Hooks | v0.1 available | Reversible Codex `notify` and Claude `settings.json` hook install/uninstall. |
-| Local dashboard | v0.1 available | Served on `127.0.0.1`; shows sessions, history summaries, and trends. |
-| Windows tray | v0.1 available | Starts the local server and exposes quick actions. |
-| Windows floating monitor | v0.1 available | Always-on-top desktop widget for active Codex / Claude state. |
-| SQLite backend | Optional v0.1 backend | Bundled SQLite amalgamation build path is available; richer query tables are planned for v0.3. |
+| CLI | v0.2 available | `status`, `json`, `waybar`, `state`, `sessions`, `history`, `sync`, `doctor`. |
+| Hooks | v0.2 available | Reversible Codex `notify` and Claude `settings.json` hook install/uninstall, with stronger dry-run and doctor checks. |
+| Local dashboard | v0.2 available | Served on `127.0.0.1`; shows hardened multi-session state, history summaries, and trends. |
+| Windows tray | v0.2 available | Starts the local server and exposes quick actions. |
+| Windows floating monitor | v0.2 available | Always-on-top desktop widget for active Codex / Claude state. |
+| SQLite backend | Optional v0.2 backend | Bundled SQLite amalgamation build path is available; richer query tables are planned for v0.3. |
 | Cross-platform native UI | Planned | CopperSpice, Qt, and wxWidgets are candidates for a future shell. |
 
 ## Preview
@@ -287,11 +287,14 @@ More detailed notes live in [docs/comparison.md](docs/comparison.md).
 
 v0.2 reliability and parsing:
 
-- Add more real-world sanitized Codex / Claude JSONL fixtures.
-- Harden parser edge cases for approvals, aborted turns, failed tools, partial logs, and provider schema drift.
-- Improve token/context extraction, especially cache and reasoning fields.
-- Improve Claude OAuth refresh and quota window handling.
-- Add clearer `doctor` checks for hook health, startup registration, and stale local logs.
+Done in v0.2.0:
+
+- Added more sanitized Codex / Claude JSONL fixtures for schema drift, nested tool-result errors, and same-name sessions.
+- Hardened parser edge cases for approvals, aborted turns, failed tools, partial logs, and provider schema drift.
+- Improved token/context extraction for prompt/completion aliases, cache fields, reasoning fields, and wrapper/API events.
+- Prevented passive log sessions from merging when different projects contain the same JSONL stem.
+- Added clearer `doctor` checks for hook health, startup registration, and stale or malformed local logs.
+- Fixed GitHub Actions Windows runner selection for more predictable release builds.
 
 v0.3 storage and analytics:
 

@@ -64,6 +64,8 @@ Every source should be normalized into this shape:
 
 Privacy rule: event storage must not persist prompt text, assistant text, command output, tool output, file contents, or environment variables. Store numbers, ids, paths, timestamps, model names, state labels, and sanitized tool names only.
 
+`event --stdin` also accepts common wrapper/provider aliases before normalizing to the canonical shape. Token aliases include `input_tokens`, `prompt_tokens`, `output_tokens`, `completion_tokens`, cache read/write fields, `reasoning_tokens`, and `total_tokens`. Context aliases include `context_used`, `context_tokens`, `context_limit`, `context_window`, and `context_percent`.
+
 ## CLI And HTTP Ingestion
 
 Implemented commands:

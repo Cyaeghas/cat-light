@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(cat_light VERSION 0.1.0 LANGUAGES C CXX)
+project(cat_light VERSION 0.2.0 LANGUAGES C CXX)
 
 option(CAT_LIGHT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(CAT_LIGHT_ENABLE_SQLITE "Build optional SQLite history backend" OFF)
@@ -44,7 +44,7 @@ else()
 endif()
 
 if(WIN32)
-  target_link_libraries(cat-light PRIVATE ws2_32)
+  target_link_libraries(cat-light PRIVATE ws2_32 advapi32)
 endif()
 
 if(CAT_LIGHT_ENABLE_SQLITE)

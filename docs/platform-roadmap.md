@@ -4,7 +4,7 @@
 
 ## Current Product Shape
 
-The public prototype now has three working layers:
+The current release has three working layers:
 
 1. Core binary:
    - Collect quota.
@@ -40,17 +40,19 @@ Done:
 
 ### v0.2 Reliability And Parsing
 
-Next priority:
+Done:
 
 - Add more sanitized real-world Codex / Claude JSONL fixtures.
 - Harden parser edge cases for approvals, aborted turns, failed tools, partial logs, and provider schema drift.
 - Improve token/context extraction, especially cache and reasoning fields.
-- Improve Claude OAuth refresh and exact quota window handling.
+- Improve wrapper/API event token and context field compatibility.
+- Keep passive log sessions distinct when different projects contain the same JSONL stem.
 - Add clearer `doctor` checks for hook health, startup registration, and stale local logs.
+- Pin the Windows GitHub Actions runner for predictable release builds.
 
 ### v0.3 Storage And Analytics
 
-Next after parser hardening:
+Next priority:
 
 - Expand SQLite into query-friendly tables for events, sessions, token usage, context snapshots, quota snapshots, tools, commands, and hook installs.
 - Add migration/version metadata for local databases.

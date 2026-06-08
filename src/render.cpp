@@ -203,7 +203,7 @@ std::string render_doctor_text(const std::vector<DoctorCheck> &checks) {
 }
 
 std::string render_help() {
-  return R"(cat-light 0.1.0
+  return R"(cat-light 0.2.0
 
 Usage:
   cat-light status [options]

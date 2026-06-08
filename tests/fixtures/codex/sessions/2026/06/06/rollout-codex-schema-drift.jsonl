@@ -1,0 +1,6 @@
+{"timestamp":"2026-06-06T10:00:00Z","type":"event_msg","payload":{"type":"turn_started","session_id":"codex-schema-drift"}}
+{"timestamp":"2026-06-06T10:00:01Z","type":"response_item","payload":{"type":"plan_update","status":"in_progress"}}
+{"timestamp":"2026-06-06T10:00:02Z","type":"response_item","payload":{"type":"tool_call","name":"shell_command","arguments":{"command":"git status --short","approval_required":true}}}
+{"timestamp":"2026-06-06T10:00:03Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"prompt_tokens":300,"completion_tokens":100,"prompt_tokens_details":{"cached_tokens":50},"completion_tokens_details":{"reasoning_tokens":25}},"context_limit":1000}}}
+{"timestamp":"2026-06-06T10:00:04Z","type":"response_item","payload":{"type":"tool_call_output","name":"shell_command","status":"ok","exit_code":0,"output":"Exit code: 0\nok"}}
+{"timestamp":"2026-06-06T10:00:05Z","type":"event_msg","payload":{"type":"turn_completed"}}

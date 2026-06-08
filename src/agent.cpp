@@ -53,21 +53,36 @@ TokenUsage token_usage_from_json(const Json *json) {
   if (usage.input == 0) {
     usage.input = json_i64(json->get("input_tokens"));
   }
+  if (usage.input == 0) {
+    usage.input = json_i64(json->get("prompt_tokens"));
+  }
   usage.output = json_i64(json->get("output"));
   if (usage.output == 0) {
     usage.output = json_i64(json->get("output_tokens"));
+  }
+  if (usage.output == 0) {
+    usage.output = json_i64(json->get("completion_tokens"));
   }
   usage.cache_read = json_i64(json->get("cache_read"));
   if (usage.cache_read == 0) {
     usage.cache_read = json_i64(json->get("cached_input_tokens"));
   }
+  if (usage.cache_read == 0) {
+    usage.cache_read = json_i64(json->get("cache_read_input_tokens"));
+  }
   usage.cache_write = json_i64(json->get("cache_write"));
   if (usage.cache_write == 0) {
     usage.cache_write = json_i64(json->get("cache_creation_input_tokens"));
   }
+  if (usage.cache_write == 0) {
+    usage.cache_write = json_i64(json->get("cache_write_input_tokens"));
+  }
   usage.reasoning = json_i64(json->get("reasoning"));
   if (usage.reasoning == 0) {
     usage.reasoning = json_i64(json->get("reasoning_output_tokens"));
+  }
+  if (usage.reasoning == 0) {
+    usage.reasoning = json_i64(json->get("reasoning_tokens"));
   }
   usage.total = json_i64(json->get("total"));
   if (usage.total == 0) {
@@ -88,11 +103,23 @@ ContextUsage context_usage_from_json(const Json *json) {
   if (context.used == 0) {
     context.used = json_i64(json->get("context_used"));
   }
+  if (context.used == 0) {
+    context.used = json_i64(json->get("context_tokens"));
+  }
   context.limit = json_i64(json->get("limit"));
   if (context.limit == 0) {
     context.limit = json_i64(json->get("context_limit"));
   }
+  if (context.limit == 0) {
+    context.limit = json_i64(json->get("context_window"));
+  }
+  if (context.limit == 0) {
+    context.limit = json_i64(json->get("max_context_tokens"));
+  }
   context.percent = json_int(json->get("percent"));
+  if (context.percent == 0) {
+    context.percent = json_int(json->get("context_percent"));
+  }
   if (context.percent == 0 && context.limit > 0) {
     context.percent = round_percent((static_cast<double>(context.used) / static_cast<double>(context.limit)) * 100.0);
   }
@@ -211,13 +238,14 @@ AgentState parse_agent_state(const std::string &state) {
   if (s == "work" || s == "working" || s == "running") {
     return AgentState::Working;
   }
-  if (s == "wait" || s == "waiting" || s == "blocked") {
+  if (s == "wait" || s == "waiting" || s == "blocked" || s == "approval" || s == "queued") {
     return AgentState::Waiting;
   }
-  if (s == "done" || s == "complete" || s == "completed") {
+  if (s == "done" || s == "complete" || s == "completed" || s == "success" || s == "succeeded") {
     return AgentState::Complete;
   }
-  if (s == "error" || s == "failed" || s == "aborted") {
+  if (s == "error" || s == "failed" || s == "failure" || s == "aborted" || s == "cancelled" ||
+      s == "canceled" || s == "interrupted") {
     return AgentState::Error;
   }
   if (s == "stale") {

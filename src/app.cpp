@@ -1,6 +1,7 @@
 #include "app.hpp"
 
 #include "agent.hpp"
+#include "agent_scan.hpp"
 #include "history_store.hpp"
 #include "http_client.hpp"
 
@@ -8,6 +9,13 @@
 #include <cctype>
 #include <filesystem>
 #include <iostream>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace catlight {
 namespace {
@@ -167,6 +175,70 @@ DoctorCheck hook_event_check(const std::string &provider, const std::string &dis
   return check;
 }
 
+DoctorCheck log_health_check(const AgentLogHealth &health, const std::string &display) {
+  DoctorCheck check;
+  check.provider = health.provider + "-logs";
+  check.display_name = display;
+  check.credential_label = "root";
+  check.credential_path = health.root;
+  check.credential_ok = health.files > 0;
+  check.cache_label = "latest";
+  check.cache_path = health.latest_file;
+  bool stale = false;
+  if (health.latest_activity) {
+    auto age = std::chrono::duration_cast<std::chrono::hours>(Clock::now() - *health.latest_activity);
+    stale = age > std::chrono::hours(24);
+  }
+  check.cache_ok = health.latest_activity.has_value() && health.parse_errors == 0 && !stale;
+
+  std::vector<std::string> parts;
+  parts.push_back(std::to_string(health.files) + " files");
+  parts.push_back(std::to_string(health.events) + " events");
+  if (health.parse_errors > 0) {
+    parts.push_back(std::to_string(health.parse_errors) + " parse errors");
+  }
+  if (health.latest_activity) {
+    parts.push_back("latest " + human_age(*health.latest_activity, Clock::now()) + " ago");
+    if (stale) {
+      parts.push_back("stale >24h");
+    }
+  } else if (health.files > 0) {
+    parts.push_back("no timestamped events");
+  } else {
+    parts.push_back("no JSONL logs found");
+  }
+  check.message = join_strings(parts, ", ");
+  return check;
+}
+
+#ifdef _WIN32
+bool float_startup_registered() {
+  constexpr const wchar_t *kStartupRunKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+  constexpr const wchar_t *kStartupValueName = L"cat-light-float";
+  HKEY key = nullptr;
+  if (RegOpenKeyExW(HKEY_CURRENT_USER, kStartupRunKey, 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+    return false;
+  }
+  DWORD type = 0;
+  DWORD bytes = 0;
+  const LSTATUS status = RegQueryValueExW(key, kStartupValueName, nullptr, &type, nullptr, &bytes);
+  RegCloseKey(key);
+  return status == ERROR_SUCCESS && (type == REG_SZ || type == REG_EXPAND_SZ) && bytes > 0;
+}
+
+DoctorCheck startup_check() {
+  DoctorCheck check;
+  check.provider = "float-startup";
+  check.display_name = "Windows float startup";
+  check.credential_label = "registration";
+  check.credential_ok = float_startup_registered();
+  check.cache_ok = true;
+  check.message = check.credential_ok ? "registered in HKCU Run"
+                                      : "optional; enable from the cat-light-float right-click menu";
+  return check;
+}
+#endif
+
 } // namespace
 
 Snapshot collect_snapshot(const Options &options) {
@@ -196,6 +268,7 @@ std::vector<DoctorCheck> run_doctor(const Options &options) {
     }
     checks.push_back(check);
     checks.push_back(hook_event_check("codex", "Codex hook events"));
+    checks.push_back(log_health_check(scan_codex_log_health(), "Codex local logs"));
   }
   if (provider_selected(options, "claude")) {
     DoctorCheck check;
@@ -210,6 +283,7 @@ std::vector<DoctorCheck> run_doctor(const Options &options) {
     }
     checks.push_back(check);
     checks.push_back(hook_event_check("claude", "Claude hook events"));
+    checks.push_back(log_health_check(scan_claude_log_health(), "Claude local logs"));
   }
   DoctorCheck curl;
   curl.provider = "curl";
@@ -275,6 +349,10 @@ std::vector<DoctorCheck> run_doctor(const Options &options) {
   }
   checks.push_back(msys2_sqlite);
 #endif
+#endif
+
+#ifdef _WIN32
+  checks.push_back(startup_check());
 #endif
   return checks;
 }

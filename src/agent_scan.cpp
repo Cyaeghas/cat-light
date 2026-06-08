@@ -38,6 +38,37 @@ long long int_value(const Json *value, long long fallback = 0) {
   return fallback;
 }
 
+long long int_key(const Json &obj, std::initializer_list<std::string> keys, long long fallback = 0) {
+  for (const auto &key : keys) {
+    long long value = int_value(obj.get(key), 0);
+    if (value != 0) {
+      return value;
+    }
+  }
+  return fallback;
+}
+
+long long int_path(const Json &obj, std::initializer_list<std::string_view> keys, long long fallback = 0) {
+  return int_value(obj.path(keys), fallback);
+}
+
+bool bool_value(const Json *value, bool fallback = false) {
+  if (!value) {
+    return fallback;
+  }
+  if (value->is_bool()) {
+    return value->as_bool();
+  }
+  if (value->is_number()) {
+    return value->as_number() != 0.0;
+  }
+  if (value->is_string()) {
+    const std::string text = to_lower(trim(value->as_string()));
+    return text == "1" || text == "true" || text == "yes" || text == "required";
+  }
+  return fallback;
+}
+
 std::optional<TimePoint> timestamp_from_json(const Json &obj) {
   for (const std::string key : {"timestamp", "created_at", "time", "ts"}) {
     if (const Json *value = obj.get(key)) {
@@ -90,6 +121,37 @@ std::string file_session_id(const std::filesystem::path &file) {
   return stem.empty() ? file.filename().string() : stem;
 }
 
+std::string log_instance_id(const std::string &provider,
+                            const std::string &session_id,
+                            const std::string &project_hint) {
+  std::vector<std::string> parts;
+  parts.push_back(provider.empty() ? "agent" : provider);
+  if (!project_hint.empty()) {
+    parts.push_back(project_hint);
+  }
+  parts.push_back(session_id.empty() ? "unknown" : session_id);
+  return join_strings(parts, ":");
+}
+
+std::string session_id_from_obj(const Json &obj, const std::string &fallback) {
+  for (const std::string key :
+       {"session_id", "sessionId", "conversation_id", "conversationId", "thread_id", "threadId", "rollout_id"}) {
+    std::string value = string_value(obj.get(key));
+    if (!value.empty()) {
+      return value;
+    }
+  }
+  if (const Json *payload = obj.get("payload"); payload && payload->is_object()) {
+    for (const std::string key : {"session_id", "sessionId", "conversation_id", "conversationId", "thread_id", "threadId"}) {
+      std::string value = string_value(payload->get(key));
+      if (!value.empty()) {
+        return value;
+      }
+    }
+  }
+  return fallback;
+}
+
 std::string codex_project_hint(const std::filesystem::path &file) {
   std::vector<std::string> parts;
   auto parent = file.parent_path();
@@ -131,7 +193,23 @@ bool is_error_output(const std::string &output) {
 }
 
 Json parse_arguments(const Json &payload) {
-  const std::string args = string_value(payload.get("arguments"));
+  if (const Json *args_json = payload.get("arguments")) {
+    if (args_json->is_object()) {
+      return *args_json;
+    }
+    if (args_json->is_string()) {
+      const std::string args = args_json->as_string();
+      if (!args.empty()) {
+        std::string error;
+        Json parsed = Json::parse(args, &error);
+        return error.empty() ? parsed : Json();
+      }
+    }
+  }
+  if (const Json *input = payload.get("input"); input && input->is_object()) {
+    return *input;
+  }
+  const std::string args = string_value(payload.get("arguments_json"));
   if (args.empty()) {
     return Json();
   }
@@ -141,9 +219,15 @@ Json parse_arguments(const Json &payload) {
 }
 
 std::string extract_command_hint(const Json &payload) {
-  Json args = parse_arguments(payload);
-  std::string command = string_value(args.get("command"));
+  std::string command = string_value(payload.get("command"));
   if (command.empty()) {
+    command = string_value(payload.get("cmd"));
+  }
+  Json args = parse_arguments(payload);
+  if (command.empty() && args.is_object()) {
+    command = string_value(args.get("command"));
+  }
+  if (command.empty() && args.is_object()) {
     command = string_value(args.get("cmd"));
   }
   command = trim(command);
@@ -161,7 +245,20 @@ std::string extract_command_hint(const Json &payload) {
 
 bool requires_approval(const Json &payload) {
   Json args = parse_arguments(payload);
-  return string_value(args.get("sandbox_permissions")) == "require_escalated";
+  auto check_object = [](const Json &obj) {
+    for (const std::string key : {"approval_required", "requires_approval", "needs_approval", "require_approval"}) {
+      if (bool_value(obj.get(key))) {
+        return true;
+      }
+    }
+    const std::string permissions = to_lower(string_value(obj.get("sandbox_permissions")));
+    if (permissions == "require_escalated" || permissions == "approval_required") {
+      return true;
+    }
+    const std::string approval = to_lower(string_value(obj.get("approval")));
+    return approval == "required" || approval == "on-request" || approval == "ask";
+  };
+  return check_object(payload) || (args.is_object() && check_object(args));
 }
 
 TokenUsage usage_from_object(const Json *usage_json) {
@@ -169,30 +266,33 @@ TokenUsage usage_from_object(const Json *usage_json) {
   if (!usage_json || !usage_json->is_object()) {
     return usage;
   }
-  usage.input = int_value(usage_json->get("input_tokens"));
-  if (usage.input == 0) {
-    usage.input = int_value(usage_json->get("input"));
-  }
-  usage.output = int_value(usage_json->get("output_tokens"));
-  if (usage.output == 0) {
-    usage.output = int_value(usage_json->get("output"));
-  }
-  usage.cache_read = int_value(usage_json->get("cached_input_tokens"));
+  const Json &obj = *usage_json;
+  usage.input = int_key(obj, {"input_tokens", "input", "prompt_tokens", "prompt", "input_token_count"});
+  usage.output = int_key(obj, {"output_tokens", "output", "completion_tokens", "completion", "output_token_count"});
+  usage.cache_read =
+      int_key(obj, {"cached_input_tokens", "cache_read_input_tokens", "cache_read_tokens", "cache_read"});
   if (usage.cache_read == 0) {
-    usage.cache_read = int_value(usage_json->get("cache_read_input_tokens"));
+    usage.cache_read = int_path(obj, {"prompt_tokens_details", "cached_tokens"});
   }
-  usage.cache_write = int_value(usage_json->get("cache_creation_input_tokens"));
-  if (usage.cache_write == 0) {
-    usage.cache_write = int_value(usage_json->get("cache_write_input_tokens"));
+  if (usage.cache_read == 0) {
+    usage.cache_read = int_path(obj, {"input_token_details", "cached_tokens"});
   }
-  usage.reasoning = int_value(usage_json->get("reasoning_output_tokens"));
+  if (usage.cache_read == 0) {
+    usage.cache_read = int_path(obj, {"input_tokens_details", "cached_tokens"});
+  }
+  usage.cache_write =
+      int_key(obj, {"cache_creation_input_tokens", "cache_write_input_tokens", "cache_write_tokens", "cache_write"});
+  usage.reasoning = int_key(obj, {"reasoning_output_tokens", "reasoning_tokens", "reasoning"});
   if (usage.reasoning == 0) {
-    usage.reasoning = int_value(usage_json->get("reasoning"));
+    usage.reasoning = int_path(obj, {"completion_tokens_details", "reasoning_tokens"});
   }
-  usage.total = int_value(usage_json->get("total_tokens"));
-  if (usage.total == 0) {
-    usage.total = int_value(usage_json->get("total"));
+  if (usage.reasoning == 0) {
+    usage.reasoning = int_path(obj, {"output_token_details", "reasoning_tokens"});
   }
+  if (usage.reasoning == 0) {
+    usage.reasoning = int_path(obj, {"output_tokens_details", "reasoning_tokens"});
+  }
+  usage.total = int_key(obj, {"total_tokens", "total", "tokens_total"});
   if (usage.total == 0) {
     usage.total = usage.input + usage.output + usage.cache_read + usage.cache_write + usage.reasoning;
   }
@@ -205,23 +305,20 @@ ContextUsage context_from_usage(const Json *usage_json, const TokenUsage &usage)
     context.used = usage.total;
     return context;
   }
-  context.used = int_value(usage_json->get("context_used"));
+  const Json &obj = *usage_json;
+  context.used = int_key(obj, {"context_used", "context_tokens", "context"});
   if (context.used == 0) {
-    context.used = int_value(usage_json->get("context_tokens"));
-  }
-  if (context.used == 0) {
-    context.used = int_value(usage_json->get("input_tokens")) + int_value(usage_json->get("cached_input_tokens"));
+    context.used = usage.input + usage.cache_read + usage.cache_write;
   }
   if (context.used == 0) {
     context.used = usage.total;
   }
-  context.limit = int_value(usage_json->get("context_limit"));
-  if (context.limit == 0) {
-    context.limit = int_value(usage_json->get("context_window"));
-  }
+  context.limit = int_key(obj, {"context_limit", "context_window", "max_context_tokens"});
+  context.percent = static_cast<int>(int_key(obj, {"context_percent", "percent_used", "usage_percent"}));
   if (context.limit > 0) {
     context.percent = round_percent((static_cast<double>(context.used) / static_cast<double>(context.limit)) * 100.0);
   }
+  context.percent = clamp_percent(context.percent);
   return context;
 }
 
@@ -278,12 +375,27 @@ ContextUsage codex_context_from_info(const Json *info, const TokenUsage &usage) 
   return context_from_usage(info, usage);
 }
 
+bool payload_has_error_status(const Json &payload) {
+  const long long exit_code = int_key(payload, {"exit_code", "exitCode", "exit_status"}, 0);
+  if (exit_code != 0) {
+    return true;
+  }
+  for (const std::string key : {"status", "result", "outcome"}) {
+    const std::string value = to_lower(string_value(payload.get(key)));
+    if (value == "error" || value == "failed" || value == "failure" || value == "cancelled" ||
+        value == "canceled" || value == "aborted") {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::optional<AgentEvent> codex_state_event(const Json &obj, const std::string &session_id, const std::string &project_hint) {
   AgentEvent event;
   event.provider = "codex";
   event.source = "codex-log";
   event.session_id = session_id;
-  event.instance_id = "codex:" + session_id;
+  event.instance_id = log_instance_id("codex", session_id, project_hint);
   event.project_path = project_hint;
   event.timestamp = timestamp_from_json(obj).value_or(Clock::now());
 
@@ -291,18 +403,21 @@ std::optional<AgentEvent> codex_state_event(const Json &obj, const std::string &
   const Json *payload = obj.get("payload");
   if (type == "event_msg" && payload && payload->is_object()) {
     const std::string ptype = string_value(payload->get("type"));
+    const std::string normalized = to_lower(ptype);
     event.raw_kind = ptype;
-    if (ptype == "task_complete") {
+    if (ptype == "task_complete" || ptype == "turn_complete" || ptype == "turn_completed" ||
+        ptype == "completed") {
       event.state = AgentState::Complete;
       event.detail = "Task complete";
       return event;
     }
-    if (ptype == "turn_aborted") {
+    if (ptype == "turn_aborted" || ptype == "task_aborted" || ptype == "task_failed" ||
+        normalized.find("error") != std::string::npos || payload_has_error_status(*payload)) {
       event.state = AgentState::Error;
       event.detail = "Aborted: " + string_value(payload->get("reason"), "interrupted");
       return event;
     }
-    if (ptype == "task_started") {
+    if (ptype == "task_started" || ptype == "turn_started" || ptype == "started") {
       event.state = AgentState::Starting;
       event.detail = "Task started";
       return event;
@@ -324,17 +439,25 @@ std::optional<AgentEvent> codex_state_event(const Json &obj, const std::string &
       }
       return event;
     }
+    if (normalized.find("reason") != std::string::npos || ptype == "plan_update") {
+      event.state = AgentState::Thinking;
+      event.detail = ptype == "plan_update" ? "Planning" : "Thinking";
+      return event;
+    }
   }
 
   if (type == "response_item" && payload && payload->is_object()) {
     const std::string ptype = string_value(payload->get("type"));
+    const std::string normalized = to_lower(ptype);
     event.raw_kind = ptype;
-    if (ptype == "reasoning") {
+    if (ptype == "reasoning" || ptype == "reasoning_delta" || ptype == "plan_update" ||
+        normalized.find("reason") != std::string::npos) {
       event.state = AgentState::Thinking;
-      event.detail = "Thinking";
+      event.detail = ptype == "plan_update" ? "Planning" : "Thinking";
       return event;
     }
-    if (ptype == "function_call") {
+    if (ptype == "function_call" || ptype == "tool_call" || ptype == "exec_command" ||
+        ptype == "shell_command" || ptype == "local_shell_call") {
       const std::string command = extract_command_hint(*payload);
       event.tool_name = string_value(payload->get("name"), "shell_command");
       event.state = requires_approval(*payload) ? AgentState::Waiting : AgentState::Working;
@@ -344,14 +467,16 @@ std::optional<AgentEvent> codex_state_event(const Json &obj, const std::string &
       }
       return event;
     }
-    if (ptype == "function_call_output") {
-      event.tool_name = "shell_command";
+    if (ptype == "function_call_output" || ptype == "tool_call_output" || ptype == "exec_command_output" ||
+        ptype == "shell_command_output" || ptype == "local_shell_call_output") {
+      event.tool_name = string_value(payload->get("name"), "shell_command");
       const std::string output = string_value(payload->get("output"));
-      event.state = is_error_output(output) ? AgentState::Error : AgentState::Working;
+      event.state = (payload_has_error_status(*payload) || is_error_output(output)) ? AgentState::Error
+                                                                                    : AgentState::Working;
       event.detail = event.state == AgentState::Error ? "Command failed" : "Command completed";
       return event;
     }
-    if (ptype == "custom_tool_call") {
+    if (ptype == "custom_tool_call" || ptype == "apply_patch" || normalized.find("patch") != std::string::npos) {
       event.tool_name = string_value(payload->get("name"), "apply_patch");
       event.state = AgentState::Working;
       event.detail = "Editing file";
@@ -404,12 +529,22 @@ bool content_has_error_tool_result(const Json *content) {
     if (!item.is_object() || string_value(item.get("type")) != "tool_result") {
       continue;
     }
-    if (const Json *is_error = item.get("is_error"); is_error && is_error->is_bool() && is_error->as_bool()) {
+    if (bool_value(item.get("is_error"))) {
       return true;
     }
     const std::string text = string_value(item.get("content"));
     if (is_error_output(text)) {
       return true;
+    }
+    if (const Json *nested = item.get("content"); nested && nested->is_array()) {
+      for (const auto &nested_item : nested->array()) {
+        if (nested_item.is_object() && is_error_output(string_value(nested_item.get("text")))) {
+          return true;
+        }
+        if (nested_item.is_string() && is_error_output(nested_item.as_string())) {
+          return true;
+        }
+      }
     }
   }
   return false;
@@ -437,7 +572,7 @@ std::optional<AgentEvent> claude_state_event(const Json &obj, const std::string 
   event.provider = "claude";
   event.source = "claude-log";
   event.session_id = session_id;
-  event.instance_id = "claude:" + session_id;
+  event.instance_id = log_instance_id("claude", session_id, project_hint);
   event.project_path = project_hint;
   event.timestamp = timestamp_from_json(obj).value_or(Clock::now());
 
@@ -468,6 +603,17 @@ std::optional<AgentEvent> claude_state_event(const Json &obj, const std::string 
       event.detail = tool.empty() ? "Response complete" : tool + " complete";
       return event;
     }
+    if (stop_reason == "max_tokens") {
+      event.state = AgentState::Waiting;
+      event.detail = "Stopped at max tokens";
+      return event;
+    }
+    if (stop_reason == "error" || stop_reason == "aborted" || stop_reason == "cancelled" ||
+        stop_reason == "canceled") {
+      event.state = AgentState::Error;
+      event.detail = stop_reason.empty() ? "Assistant error" : "Assistant " + stop_reason;
+      return event;
+    }
     if (stop_reason.empty()) {
       event.state = AgentState::Working;
       event.detail = "Generating response";
@@ -490,7 +636,7 @@ std::optional<AgentEvent> claude_state_event(const Json &obj, const std::string 
   }
   if (type == "system") {
     const std::string subtype = string_value(obj.get("subtype"));
-    if (subtype == "stop_hook_summary") {
+    if (subtype == "stop_hook_summary" || subtype == "session_end") {
       event.state = AgentState::Complete;
       event.detail = "Task complete";
       return event;
@@ -574,13 +720,15 @@ std::vector<AgentEvent> parse_file_events(const std::filesystem::path &file,
     if (!parse_error.empty() || !obj.is_object()) {
       continue;
     }
+    const std::string line_session_id = session_id_from_obj(obj, session_id);
+    const std::string line_instance_id = log_instance_id(provider, line_session_id, project_hint);
     if (provider == "codex") {
       if (const Json *info = codex_token_count_info(obj)) {
         AgentEvent usage;
         usage.provider = "codex";
         usage.source = "codex-log";
-        usage.session_id = session_id;
-        usage.instance_id = "codex:" + session_id;
+        usage.session_id = line_session_id;
+        usage.instance_id = line_instance_id;
         usage.project_path = project_hint;
         usage.state = AgentState::Working;
         usage.phase = "token_count";
@@ -591,7 +739,7 @@ std::vector<AgentEvent> parse_file_events(const std::filesystem::path &file,
         usage.context = codex_context_from_info(info, usage.tokens);
         events.push_back(usage);
       }
-      if (auto state = codex_state_event(obj, session_id, project_hint)) {
+      if (auto state = codex_state_event(obj, line_session_id, project_hint)) {
         events.push_back(*state);
       }
     } else {
@@ -600,8 +748,8 @@ std::vector<AgentEvent> parse_file_events(const std::filesystem::path &file,
         AgentEvent usage;
         usage.provider = "claude";
         usage.source = "claude-log";
-        usage.session_id = session_id;
-        usage.instance_id = "claude:" + session_id;
+        usage.session_id = line_session_id;
+        usage.instance_id = line_instance_id;
         usage.project_path = project_hint;
         usage.state = AgentState::Working;
         usage.phase = "usage";
@@ -613,7 +761,7 @@ std::vector<AgentEvent> parse_file_events(const std::filesystem::path &file,
         usage.context = context_from_usage(obj.path({"message", "usage"}), usage.tokens);
         events.push_back(usage);
       }
-      if (auto state = claude_state_event(obj, session_id, project_hint)) {
+      if (auto state = claude_state_event(obj, line_session_id, project_hint)) {
         std::string model = claude_model_from_obj(obj);
         if (!model.empty()) {
           state->model = model;
@@ -671,7 +819,49 @@ void mark_stale_if_needed(AgentEvent &event) {
   }
 }
 
+AgentLogHealth scan_log_health(const std::string &provider, const std::filesystem::path &root) {
+  AgentLogHealth health;
+  health.provider = provider;
+  health.root = root;
+  for (const auto &file : list_jsonl_files(root)) {
+    ++health.files;
+    std::ifstream in(file, std::ios::binary);
+    if (!in) {
+      continue;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+      line = trim(line);
+      if (line.empty()) {
+        continue;
+      }
+      std::string parse_error;
+      Json obj = Json::parse(line, &parse_error);
+      if (!parse_error.empty() || !obj.is_object()) {
+        ++health.parse_errors;
+        continue;
+      }
+      ++health.events;
+      if (auto timestamp = timestamp_from_json(obj)) {
+        if (!health.latest_activity || *timestamp > *health.latest_activity) {
+          health.latest_activity = *timestamp;
+          health.latest_file = file;
+        }
+      }
+    }
+  }
+  return health;
+}
+
 } // namespace
+
+AgentLogHealth scan_codex_log_health() {
+  return scan_log_health("codex", codex_sessions_dir());
+}
+
+AgentLogHealth scan_claude_log_health() {
+  return scan_log_health("claude", claude_projects_dir());
+}
 
 std::vector<AgentEvent> scan_codex_events(const Options &options) {
   std::vector<AgentEvent> events;
