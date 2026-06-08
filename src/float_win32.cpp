@@ -29,10 +29,14 @@ constexpr int kMenuSync = 1002;
 constexpr int kMenuHookStatus = 1003;
 constexpr int kMenuRefresh = 1004;
 constexpr int kMenuResetPosition = 1005;
-constexpr int kMenuQuit = 1006;
+constexpr int kMenuEnableStartup = 1006;
+constexpr int kMenuDisableStartup = 1007;
+constexpr int kMenuQuit = 1008;
 constexpr int kWindowWidth = 344;
 constexpr int kWindowHeight = 184;
 constexpr int kMissingPosition = -32000;
+constexpr const wchar_t *kStartupRunKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+constexpr const wchar_t *kStartupValueName = L"cat-light-float";
 
 struct CommandResult {
   bool ok = false;
@@ -87,6 +91,12 @@ std::wstring module_dir() {
     return L".";
   }
   return value.substr(0, slash);
+}
+
+std::wstring module_path() {
+  wchar_t path[MAX_PATH]{};
+  DWORD written = GetModuleFileNameW(nullptr, path, MAX_PATH);
+  return std::wstring(path, written);
 }
 
 std::wstring local_app_data_dir() {
@@ -213,6 +223,47 @@ void run_visible_console(const std::wstring &args) {
 void open_dashboard() {
   start_server();
   ShellExecuteW(nullptr, L"open", L"http://127.0.0.1:8750", nullptr, nullptr, SW_SHOWNORMAL);
+}
+
+bool startup_enabled() {
+  HKEY key = nullptr;
+  if (RegOpenKeyExW(HKEY_CURRENT_USER, kStartupRunKey, 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+    return false;
+  }
+  wchar_t value[MAX_PATH * 2]{};
+  DWORD type = 0;
+  DWORD size = sizeof(value);
+  const LONG result = RegQueryValueExW(key, kStartupValueName, nullptr, &type, reinterpret_cast<LPBYTE>(value), &size);
+  RegCloseKey(key);
+  return result == ERROR_SUCCESS && type == REG_SZ && size > sizeof(wchar_t);
+}
+
+bool install_startup() {
+  HKEY key = nullptr;
+  if (RegCreateKeyExW(HKEY_CURRENT_USER, kStartupRunKey, 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key, nullptr) !=
+      ERROR_SUCCESS) {
+    return false;
+  }
+  const std::wstring command = quote(module_path());
+  const DWORD bytes = static_cast<DWORD>((command.size() + 1) * sizeof(wchar_t));
+  const LONG result = RegSetValueExW(key,
+                                     kStartupValueName,
+                                     0,
+                                     REG_SZ,
+                                     reinterpret_cast<const BYTE *>(command.c_str()),
+                                     bytes);
+  RegCloseKey(key);
+  return result == ERROR_SUCCESS;
+}
+
+bool remove_startup() {
+  HKEY key = nullptr;
+  if (RegOpenKeyExW(HKEY_CURRENT_USER, kStartupRunKey, 0, KEY_SET_VALUE, &key) != ERROR_SUCCESS) {
+    return true;
+  }
+  const LONG result = RegDeleteValueW(key, kStartupValueName);
+  RegCloseKey(key);
+  return result == ERROR_SUCCESS || result == ERROR_FILE_NOT_FOUND;
 }
 
 CommandResult run_capture(const std::wstring &args, DWORD timeout_ms) {
@@ -731,6 +782,28 @@ void draw_dot(HDC dc, int x, int y, int size, COLORREF color) {
   DeleteObject(brush);
 }
 
+void draw_cat_mark(HDC dc, int x, int y, COLORREF face, COLORREF border, COLORREF ink, COLORREF light) {
+  HBRUSH brush = CreateSolidBrush(face);
+  HPEN pen = CreatePen(PS_SOLID, 1, border);
+  HBRUSH old_brush = static_cast<HBRUSH>(SelectObject(dc, brush));
+  HPEN old_pen = static_cast<HPEN>(SelectObject(dc, pen));
+
+  POINT left_ear[3]{{x + 4, y + 11}, {x + 10, y + 1}, {x + 16, y + 11}};
+  POINT right_ear[3]{{x + 18, y + 11}, {x + 24, y + 1}, {x + 30, y + 11}};
+  Polygon(dc, left_ear, 3);
+  Polygon(dc, right_ear, 3);
+  RoundRect(dc, x + 1, y + 8, x + 33, y + 32, 10, 10);
+
+  SelectObject(dc, old_pen);
+  SelectObject(dc, old_brush);
+  DeleteObject(pen);
+  DeleteObject(brush);
+
+  draw_dot(dc, x + 10, y + 18, 4, ink);
+  draw_dot(dc, x + 23, y + 18, 4, ink);
+  draw_dot(dc, x + 25, y + 24, 6, light);
+}
+
 void draw_status(HDC dc, const RECT &client, const FloatStatus &status) {
   const COLORREF bg = RGB(22, 24, 27);
   const COLORREF border = RGB(57, 62, 70);
@@ -739,6 +812,7 @@ void draw_status(HDC dc, const RECT &client, const FloatStatus &status) {
   const COLORREF detail = RGB(193, 201, 211);
   const COLORREF panel = RGB(31, 34, 38);
   const COLORREF line = RGB(68, 74, 84);
+  const COLORREF cat_face = RGB(34, 38, 45);
   const COLORREF accent = color_for_class(status.state_class);
 
   fill_round_rect(dc, client, bg, border);
@@ -746,7 +820,9 @@ void draw_status(HDC dc, const RECT &client, const FloatStatus &status) {
   RECT accent_rect{client.left + 10, client.top + 12, client.left + 14, client.bottom - 12};
   fill_rect(dc, accent_rect, accent);
 
-  RECT title_rect{client.left + 24, client.top + 10, client.right - 96, client.top + 34};
+  draw_cat_mark(dc, client.left + 24, client.top + 8, cat_face, RGB(75, 83, 96), text, accent);
+
+  RECT title_rect{client.left + 64, client.top + 10, client.right - 96, client.top + 34};
   draw_text_line(dc, g_fonts.title, text, L"cat-light", title_rect);
 
   wchar_t time_text[32]{};
@@ -823,6 +899,11 @@ void show_menu(HWND hwnd) {
   AppendMenuW(menu, MF_STRING, kMenuHookStatus, L"Hook status");
   AppendMenuW(menu, MF_STRING, kMenuRefresh, L"Refresh now");
   AppendMenuW(menu, MF_STRING, kMenuResetPosition, L"Reset position");
+  AppendMenuW(menu,
+              MF_STRING | (startup_enabled() ? MF_CHECKED : 0),
+              kMenuEnableStartup,
+              L"Start with Windows");
+  AppendMenuW(menu, MF_STRING, kMenuDisableStartup, L"Remove startup");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_STRING, kMenuQuit, L"Quit");
   SetForegroundWindow(hwnd);
@@ -951,6 +1032,18 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
       return 0;
     case kMenuResetPosition:
       reset_position(hwnd);
+      return 0;
+    case kMenuEnableStartup:
+      MessageBoxW(hwnd,
+                  install_startup() ? L"cat-light-float will start with Windows." : L"Could not update startup entry.",
+                  L"cat-light",
+                  MB_OK | MB_ICONINFORMATION);
+      return 0;
+    case kMenuDisableStartup:
+      MessageBoxW(hwnd,
+                  remove_startup() ? L"cat-light-float startup entry removed." : L"Could not remove startup entry.",
+                  L"cat-light",
+                  MB_OK | MB_ICONINFORMATION);
       return 0;
     case kMenuQuit:
       DestroyWindow(hwnd);

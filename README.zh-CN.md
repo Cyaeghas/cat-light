@@ -19,7 +19,7 @@
 | 功能 | 说明 |
 | --- | --- |
 | 系统托盘 | Windows 托盘启动器会守护本地 dashboard 服务，并提供常用操作入口。 |
-| 桌面浮标 | 置顶、可拖动的小窗口，用于显示当前 Codex / Claude Code 活动状态。 |
+| 桌面浮标 | 置顶、可拖动的小窗口，用于显示当前 Codex / Claude Code 活动状态，并带有轻量猫耳状态灯识别。 |
 | Web dashboard | 本地 `127.0.0.1` 仪表盘，显示会话、历史摘要、趋势和同步操作。 |
 | Agent 状态 | 支持每个 provider 的多个会话，状态包括 `thinking`、`working`、`waiting`、`complete` 和 `error`。 |
 | Token 与上下文 | 从本地日志提取 token 总量、上下文占用，并保留 quota 状态接口。 |
@@ -121,7 +121,7 @@ http://127.0.0.1:8750
 
 - 拖动：移动窗口。
 - 双击：打开本地 dashboard。
-- 右键：同步、hook 状态、刷新、重置位置或退出。
+- 右键：同步、hook 状态、刷新、重置位置、启用/取消开机启动或退出。
 - 窗口位置保存在 `%LOCALAPPDATA%\cat-light\float.ini`。
 
 ### Dashboard

@@ -19,7 +19,7 @@ The project is written in C++ with CMake. The core stays dependency-light and cr
 | Feature | What you get |
 | --- | --- |
 | System tray | A Windows tray launcher that supervises the local dashboard server and exposes quick actions. |
-| Floating monitor | A topmost, draggable desktop widget for active Codex / Claude Code state. |
+| Floating monitor | A topmost, draggable desktop widget for active Codex / Claude Code state, with subtle cat-light branding. |
 | Web dashboard | A local `127.0.0.1` dashboard for sessions, history summaries, trends, and sync actions. |
 | Agent state | Multiple live sessions per provider with `thinking`, `working`, `waiting`, `complete`, and `error` states. |
 | Token and context tracking | Local token totals, context usage, and quota-oriented provider status where available. |
@@ -138,7 +138,7 @@ http://127.0.0.1:8750
 
 - Drag: move the monitor.
 - Double-click: open the local dashboard.
-- Right-click: sync, hook status, refresh, reset position, or quit.
+- Right-click: sync, hook status, refresh, reset position, enable/disable startup, or quit.
 - Window position is saved in `%LOCALAPPDATA%\cat-light\float.ini`.
 
 ### Dashboard

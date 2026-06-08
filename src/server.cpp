@@ -70,7 +70,7 @@ std::string http_response(const std::string &body, const std::string &content_ty
 }
 
 std::string dashboard_html() {
-  return R"(<!doctype html>
+  return std::string(R"(<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -89,6 +89,8 @@ std::string dashboard_html() {
       --high: #b5472f;
       --critical: #a32735;
       --track: #e7eaee;
+      --cat: #2d7d90;
+      --cat-face: #ffffff;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -98,6 +100,8 @@ std::string dashboard_html() {
         --line: #2b3038;
         --panel: #191d24;
         --track: #2a3038;
+        --cat: #62c6d6;
+        --cat-face: #20252e;
       }
     }
     * { box-sizing: border-box; }
@@ -113,12 +117,68 @@ std::string dashboard_html() {
     }
     header {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
       gap: 16px;
       border-bottom: 1px solid var(--line);
       padding-bottom: 12px;
       margin-bottom: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .cat-mark {
+      position: relative;
+      flex: 0 0 auto;
+      width: 34px;
+      height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 10px 10px 12px 12px;
+      background: var(--cat-face);
+      box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--cat) 18%, transparent);
+    }
+    .cat-mark::before,
+    .cat-mark::after {
+      content: "";
+      position: absolute;
+      top: -7px;
+      width: 12px;
+      height: 12px;
+      border-left: 1px solid var(--line);
+      border-top: 1px solid var(--line);
+      background: var(--cat-face);
+      transform: rotate(45deg);
+    }
+    .cat-mark::before { left: 5px; }
+    .cat-mark::after { right: 5px; }
+    .cat-face {
+      position: absolute;
+      inset: 0;
+    }
+    .cat-face::before,
+    .cat-face::after {
+      content: "";
+      position: absolute;
+      top: 12px;
+      width: 4px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--fg);
+    }
+    .cat-face::before { left: 10px; }
+    .cat-face::after { right: 10px; }
+    .cat-light {
+      position: absolute;
+      right: 5px;
+      bottom: 4px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cat);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat) 18%, transparent);
     }
     h1 {
       font-size: 22px;
@@ -185,7 +245,25 @@ std::string dashboard_html() {
       padding: 2px 8px;
       font-size: 12px;
       color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
+    .state::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--cat);
+    }
+    .state.waiting::before { background: var(--high); }
+    .state.working::before,
+    .state.thinking::before,
+    .state.starting::before { background: var(--mid); }
+    .state.error::before { background: var(--critical); }
+    .state.complete::before,
+    .state.idle::before,
+    .state.stale::before { background: var(--ok); }
     .window { margin: 12px 0; }
     .row {
       display: flex;
@@ -295,11 +373,15 @@ std::string dashboard_html() {
       .trend-row { grid-template-columns: 74px minmax(72px, 1fr) 64px; gap: 8px; }
     }
   </style>
+)") + R"(
 </head>
 <body>
   <main>
     <header>
-      <h1>cat-light</h1>
+      <div class="brand">
+        <div class="cat-mark" aria-hidden="true"><span class="cat-face"></span><span class="cat-light"></span></div>
+        <h1>cat-light</h1>
+      </div>
       <div class="meta" id="meta">Loading</div>
     </header>
     <div class="toolbar">
@@ -341,6 +423,7 @@ std::string dashboard_html() {
       if (value >= 1000) return `${Math.floor(value / 1000)}k`;
       return value ? String(value) : '--';
     };
+)" + R"(
     function setMode(next) {
       mode = next;
       sessionsTab.classList.toggle('active', mode === 'sessions');
@@ -371,7 +454,7 @@ std::string dashboard_html() {
         }).join('');
         section.innerHTML = `<div class="provider">
           <h2>${status.display_name}</h2>
-          <span class="state">${status.state}</span>
+          <span class="state ${escapeHtml(status.state || 'idle')}">${escapeHtml(status.state || 'idle')}</span>
         </div>${windows || '<pre>No usage windows</pre>'}${status.message ? `<div class="message">${status.message}</div>` : ''}`;
         grid.appendChild(section);
       }
@@ -397,7 +480,7 @@ std::string dashboard_html() {
         const contextText = context.limit ? `${contextPercent}% (${context.used || 0}/${context.limit})` : `${contextPercent}%`;
         section.innerHTML = `<div class="provider">
           <h2>${escapeHtml(provider)} ${escapeHtml(shortId)}</h2>
-          <span class="state">${escapeHtml(session.state || 'idle')}</span>
+          <span class="state ${escapeHtml(session.state || 'idle')}">${escapeHtml(session.state || 'idle')}</span>
         </div>
         ${session.detail ? `<div class="detail">${escapeHtml(session.detail)}</div>` : ''}
         <div class="kv">
@@ -433,6 +516,7 @@ std::string dashboard_html() {
       section.innerHTML = `<div class="provider"><h2>${escapeHtml(title)}</h2><span class="state">${Number((items || []).length)}</span></div>${rows || '<pre>--</pre>'}`;
       grid.appendChild(section);
     }
+)" + R"(
     function renderTrend(days) {
       const section = document.createElement('section');
       const shown = (days || []).slice(-14);

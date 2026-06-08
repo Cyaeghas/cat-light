@@ -109,7 +109,7 @@ if(WIN32 AND CAT_LIGHT_ENABLE_FLOAT)
       target_compile_options(cat-light-float PRIVATE -Werror)
     endif()
   endif()
-  target_link_libraries(cat-light-float PRIVATE shell32 user32 gdi32)
+  target_link_libraries(cat-light-float PRIVATE shell32 user32 gdi32 advapi32)
 endif()
 
 install(TARGETS cat-light RUNTIME DESTINATION bin)

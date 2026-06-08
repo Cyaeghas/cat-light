@@ -53,8 +53,9 @@ http://127.0.0.1:8750
 
 - Draggable, topmost desktop monitor.
 - Double-click to open the dashboard.
-- Right-click to sync, inspect hook status, refresh, reset position, or quit.
+- Right-click to sync, inspect hook status, refresh, reset position, enable/disable startup, or quit.
 - Position is saved in `%LOCALAPPDATA%\cat-light\float.ini`.
+- Startup uses the current user Run key and does not require administrator rights.
 
 ### Tray Launcher
 
